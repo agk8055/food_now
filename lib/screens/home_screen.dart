@@ -1,55 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:food_now/screens/profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  // List of screens for navigation
+  // Using a method to build screens to access context if needed, or simple list
+  static final List<Widget> _screens = <Widget>[
+    const HomeBody(), // Extracted Home content
+    const Center(child: Text("Food Screen Placeholder")), // Placeholder
+    const Center(child: Text("Supermart Screen Placeholder")), // Placeholder
+    const ProfileScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 16),
-            _buildPromoBanner(),
-            const SizedBox(height: 24),
-            _buildCategoryGrid(),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                "FEATURED FOR YOU",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[600],
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Placeholder for Featured section (bottom part of image)
-            Container(
-              height: 150,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-                image: const DecorationImage(
-                  image: NetworkImage(
-                    'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?auto=format&fit=crop&q=80&w=1000',
-                  ), // Placeholder
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 80), // Space for bottom nav
-          ],
-        ),
-      ),
+      // Only show AppBar on Home Screen for now, or customize per screen
+      appBar: _selectedIndex == 0 ? _buildAppBar() : null,
+      body: _screens[_selectedIndex],
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -80,9 +63,17 @@ class HomeScreen extends StatelessWidget {
                 const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                 const Spacer(),
 
-                const CircleAvatar(
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person_outline, color: Color(0xFF4CAF50)),
+                InkWell(
+                  onTap: () {
+                    // Navigate to profile tab
+                    setState(() {
+                      _selectedIndex = 3;
+                    });
+                  },
+                  child: const CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person_outline, color: Color(0xFF4CAF50)),
+                  ),
                 ),
               ],
             ),
@@ -94,6 +85,87 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped,
+      selectedItemColor: const Color(0xFF4CAF50),
+      unselectedItemColor: Colors.grey,
+      showUnselectedLabels: true,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.restaurant_menu),
+          label: 'Food',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_basket_outlined),
+          label: 'Supermart',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
+      ],
+    );
+  }
+}
+
+class HomeBody extends StatelessWidget {
+  const HomeBody({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSearchBar(),
+          const SizedBox(height: 16),
+          _buildPromoBanner(),
+          const SizedBox(height: 24),
+          _buildCategoryGrid(),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              "FEATURED FOR YOU",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Placeholder for Featured section (bottom part of image)
+          Container(
+            height: 150,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+              image: const DecorationImage(
+                image: NetworkImage(
+                  'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?auto=format&fit=crop&q=80&w=1000',
+                ), // Placeholder
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 80), // Space for bottom nav
+        ],
       ),
     );
   }
@@ -376,34 +448,6 @@ class HomeScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF4CAF50),
-      unselectedItemColor: Colors.grey,
-      showUnselectedLabels: true,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.restaurant_menu),
-          label: 'Food',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_basket_outlined),
-          label: 'Supermart',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
-        ),
-      ],
     );
   }
 }

@@ -12,7 +12,20 @@
           "package_name": "com.example.food_now"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "75068223096-k3j2gpa84o63vhhthj6070b30r9v0j1v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.food_now",
+            "certificate_hash": "e70b4ff7c8daa6b2b1a28d87a21d6a0797b86eaa"
+          }
+        },
+        {
+          "client_id": "75068223096-4u9b6nivcj9ua4mvcq7vithi45p4io5n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCzSEiolieRqA9hvXgz9YQnOu0v0zWUH5U"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "75068223096-4u9b6nivcj9ua4mvcq7vithi45p4io5n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "75068223096-3ouc0er9lq98emaathga9v99lii1prvt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.foodNow"
+              }
+            }
+          ]
         }
       }
     }
