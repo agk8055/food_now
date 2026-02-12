@@ -1,7 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'dart:convert';
+import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
 import 'package:food_now/services/auth_service.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -124,19 +130,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLoggedInView(BuildContext context, User user) {
+    return LoggedInUserProfile(user: user);
+  }
+}
+
+class LoggedInUserProfile extends StatefulWidget {
+  final User user;
+
+  const LoggedInUserProfile({super.key, required this.user});
+
+  @override
+  State<LoggedInUserProfile> createState() => _LoggedInUserProfileState();
+}
+
+class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
+  final AuthService _authService = AuthService();
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? cachedData = prefs.getString(
+      'user_profile_${widget.user.uid}',
+    );
+
+    if (cachedData != null) {
+      if (mounted) {
+        setState(() {
+          _userData = jsonDecode(cachedData) as Map<String, dynamic>;
+          _isLoading = false;
+        });
+      }
+    } else {
+      await _fetchFromFirestore();
+    }
+  }
+
+  Future<void> _fetchFromFirestore() async {
+    // Only show loading if we don't have data yet?
+    // Or show loading indicator on top?
+    // Since we want to avoid flicker, let's only set loading if we have no data.
+    if (_userData == null && mounted) setState(() => _isLoading = true);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        // Remove createdAt TextField (Timestamp) to avoid jsonEncode error
+        data.remove('createdAt');
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'user_profile_${widget.user.uid}',
+          jsonEncode(data),
+        );
+
+        if (mounted) {
+          setState(() {
+            _userData = data;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print("Error fetching profile: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading && _userData == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+        ),
+      );
+    }
+
+    String displayName = _userData?['name'] as String? ?? "";
+    if (displayName.isEmpty) {
+      displayName = widget.user.displayName ?? "User";
+    }
+    final String? profileImage = _userData?['profileImage'];
+
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Soft background
+      backgroundColor: Colors.grey[50],
       body: CustomScrollView(
         slivers: [
-          _buildSliverAppBar(context, user),
+          _buildSliverAppBar(
+            context,
+            widget.user,
+            displayName,
+            profileImage,
+            _userData,
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-                  _buildStatsCard(),
-                  const SizedBox(height: 24),
                   _buildMenuSection(
                     title: "Account",
                     items: [
@@ -152,23 +258,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: "Your favorite restaurants & items",
                         onTap: () {},
                       ),
-                      _buildMenuItem(
-                        icon: Icons.location_on_rounded,
-                        title: "Address Book",
-                        subtitle: "Manage delivery addresses",
-                        onTap: () {},
-                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
                   _buildMenuSection(
                     title: "Settings & Support",
                     items: [
-                      _buildMenuItem(
-                        icon: Icons.payment_rounded,
-                        title: "Payment Methods",
-                        onTap: () {},
-                      ),
                       _buildMenuItem(
                         icon: Icons.notifications_active_rounded,
                         title: "Notifications",
@@ -193,11 +288,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSliverAppBar(BuildContext context, User user) {
+  Widget _buildSliverAppBar(
+    BuildContext context,
+    User user,
+    String displayName,
+    String? profileImage,
+    Map<String, dynamic>? userData,
+  ) {
     return SliverAppBar(
       expandedHeight: 200,
       backgroundColor: const Color(0xFF4CAF50),
       pinned: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit, color: Colors.white),
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    EditProfileScreen(user: user, userData: userData),
+              ),
+            );
+            // Refresh data from Firestore after edit to ensure cache is updated
+            _fetchFromFirestore();
+          },
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -217,16 +334,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: Colors.white.withOpacity(0.3),
                   shape: BoxShape.circle,
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 40,
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 50, color: Color(0xFF4CAF50)),
+                  backgroundImage:
+                      (profileImage != null && profileImage.isNotEmpty)
+                      ? NetworkImage(profileImage)
+                      : null,
+                  child: (profileImage != null && profileImage.isNotEmpty)
+                      ? null
+                      : const Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Color(0xFF4CAF50),
+                        ),
                 ),
               ),
               const SizedBox(height: 12),
               const SizedBox(height: 12),
               Text(
-                user.displayName ?? "User",
+                displayName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -245,57 +372,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStatsCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem("03", "Orders"),
-          Container(height: 40, width: 1, color: Colors.grey[200]),
-          _buildStatItem("₹1,240", "Saved"),
-          Container(height: 40, width: 1, color: Colors.grey[200]),
-          _buildStatItem("150", "Points"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF4CAF50),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 

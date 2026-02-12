@@ -67,4 +67,20 @@ class UserService {
     }
     return null;
   }
+
+  Stream<DocumentSnapshot> getUserStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots();
+  }
+
+  Future<void> updateUser({
+    required String uid,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(uid).update(data);
+    } catch (e) {
+      print("Error updating user: $e");
+      rethrow;
+    }
+  }
 }

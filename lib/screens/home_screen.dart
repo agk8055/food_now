@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:food_now/screens/profile_screen.dart';
 import 'package:food_now/widgets/bottom_navigation_bar.dart';
+import 'package:food_now/screens/food_screen.dart';
+import 'package:food_now/screens/supermart_screen.dart';
+import 'package:food_now/widgets/app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,10 +17,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // List of screens for navigation
   // Using a method to build screens to access context if needed, or simple list
-  static final List<Widget> _screens = <Widget>[
-    const HomeBody(), // Extracted Home content
-    const Center(child: Text("Food Screen Placeholder")), // Placeholder
-    const Center(child: Text("Supermart Screen Placeholder")), // Placeholder
+  // List of screens for navigation
+  List<Widget> get _screens => [
+    HomeBody(
+      onNavigate: _onItemTapped,
+    ), // Extracted Home content with navigation callback
+    const FoodScreen(),
+    const SupermartScreen(),
     const ProfileScreen(),
   ];
 
@@ -32,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       // Only show AppBar on Home Screen for now, or customize per screen
-      appBar: _selectedIndex == 0 ? _buildAppBar() : null,
+      appBar: _selectedIndex < 3 ? const HomeAppBar() : null,
       body: _screens[_selectedIndex],
       bottomNavigationBar: CustomBottomNavigationBar(
         selectedIndex: _selectedIndex,
@@ -40,62 +46,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: const Color(0xFF4CAF50), // Main Green
-      elevation: 0,
-      titleSpacing: 0,
-      toolbarHeight: 80,
-      title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  "Food Now",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                const Spacer(),
-
-                InkWell(
-                  onTap: () {
-                    // Navigate to profile tab
-                    setState(() {
-                      _selectedIndex = 3;
-                    });
-                  },
-                  child: const CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person_outline, color: Color(0xFF4CAF50)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "Kochi, Kerala 682022, India",
-              style: TextStyle(fontSize: 12, color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class HomeBody extends StatelessWidget {
-  const HomeBody({super.key});
+  final Function(int) onNavigate;
+
+  const HomeBody({super.key, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -103,8 +59,6 @@ class HomeBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSearchBar(),
-          const SizedBox(height: 16),
           _buildPromoBanner(),
           const SizedBox(height: 24),
           _buildCategoryGrid(),
@@ -139,36 +93,6 @@ class HomeBody extends StatelessWidget {
           ),
           const SizedBox(height: 80), // Space for bottom nav
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      color: const Color(0xFF4CAF50), // Extend app bar color
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Row(
-          children: [
-            SizedBox(width: 16),
-            Icon(Icons.search, color: Colors.grey),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                "search for restaurants,supermarkets and...",
-                style: TextStyle(color: Colors.grey),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Icon(Icons.mic, color: Color(0xFF4CAF50)), // Green Mic
-            SizedBox(width: 16),
-          ],
-        ),
       ),
     );
   }
@@ -298,6 +222,7 @@ class HomeBody extends StatelessWidget {
         "offerColor": Colors.red,
         "image":
             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200", // Salad/Food
+        "index": 1, // Navigate to Food Tab
       },
       {
         "title": "SUPERMART",
@@ -306,6 +231,7 @@ class HomeBody extends StatelessWidget {
         "offerColor": Colors.red,
         "image":
             "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200", // Grocery
+        "index": 2, // Navigate to Supermart Tab
       },
       {
         "title": "BAKERY & CAFE",
@@ -314,6 +240,7 @@ class HomeBody extends StatelessWidget {
         "offerColor": Colors.red,
         "image":
             "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=200", // Bakery
+        "index": 1, // Also Food/Bakery? Let's keep it 1 for now or 0
       },
       {
         "title": "CATERING",
@@ -322,6 +249,7 @@ class HomeBody extends StatelessWidget {
         "offerColor": const Color(0xFF4CAF50), // Green for this one
         "image":
             "https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&q=80&w=200", // Catering/Venue
+        "index": 1,
       },
     ];
 
@@ -340,83 +268,91 @@ class HomeBody extends StatelessWidget {
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final item = categories[index];
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'] as String,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item['subtitle'] as String,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item['offer'] as String,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: item['offerColor'] as Color,
-                        ),
-                      ),
-                    ],
+          return GestureDetector(
+            onTap: () {
+              // Navigate based on index
+              if (item['index'] != null) {
+                onNavigate(item['index'] as int);
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    alignment: Alignment.bottomRight,
-                    padding: const EdgeInsets.only(bottom: 12, right: 12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        item['image'] as String,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.grey,
-                            ),
-                          );
-                        },
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['title'] as String,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['subtitle'] as String,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item['offer'] as String,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: item['offerColor'] as Color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      alignment: Alignment.bottomRight,
+                      padding: const EdgeInsets.only(bottom: 12, right: 12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          item['image'] as String,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
