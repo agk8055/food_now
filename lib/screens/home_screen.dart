@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_now/screens/profile_screen.dart';
+import 'package:food_now/widgets/bottom_navigation_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,7 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // Only show AppBar on Home Screen for now, or customize per screen
       appBar: _selectedIndex == 0 ? _buildAppBar() : null,
       body: _screens[_selectedIndex],
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: CustomBottomNavigationBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+      ),
     );
   }
 
@@ -86,37 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      currentIndex: _selectedIndex,
-      onTap: _onItemTapped,
-      selectedItemColor: const Color(0xFF4CAF50),
-      unselectedItemColor: Colors.grey,
-      showUnselectedLabels: true,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.restaurant_menu),
-          label: 'Food',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_basket_outlined),
-          label: 'Supermart',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'Profile',
-        ),
-      ],
     );
   }
 }

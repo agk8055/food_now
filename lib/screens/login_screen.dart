@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:food_now/services/auth_service.dart'; // Make sure this path is correct based on your project structure
+import 'package:food_now/screens/home_screen.dart';
+import 'package:food_now/services/auth_service.dart';
+import 'package:food_now/services/user_service.dart';
+import 'package:food_now/services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,6 +14,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
+  final LocationService _locationService = LocationService();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -22,17 +28,68 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _processAuthResult(
+    dynamic userCredential, {
+    required bool isNewUser,
+  }) async {
+    if (userCredential != null && mounted) {
+      final user = _authService.currentUser;
+      if (user != null) {
+        // Fetch Location
+        Position? position;
+        String? address;
+        try {
+          // You might want to show a message "Fetching location..."
+          position = await _locationService.getCurrentPosition();
+          if (position != null) {
+            address = await _locationService.getAddressFromPosition(position);
+          }
+        } catch (e) {
+          print("Location error: $e");
+          // Proceed without location if it fails
+        }
+
+        // Save User Data (Create or Update)
+        await _userService.saveUser(
+          user: user,
+          role: 'buyer', // Default role for now
+          position: position,
+          address: address,
+        );
+
+        // Check Role and Navigate
+        if (mounted) {
+          final role = await _userService.getUserRole(user.uid);
+          if (role == 'buyer') {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          } else {
+            // Handle other roles or show error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Role $role not supported yet')),
+            );
+            await _authService.signOut();
+          }
+        }
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Authentication failed')));
+    }
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final userCredential = await _authService.signInWithGoogle();
-      if (userCredential != null && mounted) {
-        Navigator.pop(context);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in failed or cancelled')),
-        );
-      }
+      await _processAuthResult(
+        userCredential,
+        isNewUser: true,
+      ); // Checking isNewUser logic inside saveUser
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,13 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ? await _authService.signInWithEmailAndPassword(email, password)
           : await _authService.signUpWithEmailAndPassword(email, password);
 
-      if (userCredential != null && mounted) {
-        Navigator.pop(context);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isLogin ? 'Login failed' : 'Sign up failed')),
-        );
-      }
+      await _processAuthResult(userCredential, isNewUser: !_isLogin);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
