@@ -7,7 +7,13 @@
     </item>
 
     
-    <item>
+    <!-- Using explicit width/height on item (API 23+) to increase the size of the launcher icon 
+    used as splash image. -->
+    
+    <item
+        android:width="100dp"
+        android:height="100dp"
+        android:gravity="center">
         <bitmap
             android:gravity="fill"
             android:src="@mipmap/launcher_icon" />
