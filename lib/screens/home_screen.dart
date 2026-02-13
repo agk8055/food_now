@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:food_now/widgets/seller_banner.dart';
 import 'package:food_now/screens/profile_screen.dart';
 import 'package:food_now/widgets/bottom_navigation_bar.dart';
 import 'package:food_now/screens/food_screen.dart';
@@ -63,6 +65,10 @@ class HomeBody extends StatelessWidget {
           const SizedBox(height: 24),
           _buildCategoryGrid(),
           const SizedBox(height: 24),
+          if (FirebaseAuth.instance.currentUser == null) ...[
+            const SellerBanner(),
+            const SizedBox(height: 24),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(

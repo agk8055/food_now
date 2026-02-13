@@ -5,6 +5,9 @@ import 'package:food_now/services/user_service.dart';
 import 'package:food_now/services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'package:food_now/screens/admin_dashboard.dart';
+import 'package:food_now/screens/seller_dashboard.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -64,6 +67,18 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          } else if (role == 'seller') {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const SellerDashboard()),
+              (route) => false,
+            );
+          } else if (role == 'admin') {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminDashboard()),
               (route) => false,
             );
           } else {
@@ -303,25 +318,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Seller registration coming soon!'),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "Sell on Food Now",
-                      style: TextStyle(
-                        color: Color(0xFF4CAF50),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

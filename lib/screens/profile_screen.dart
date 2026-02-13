@@ -8,6 +8,7 @@ import 'package:food_now/screens/login_screen.dart';
 import 'package:food_now/services/auth_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:food_now/widgets/seller_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -123,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            const SellerBanner(),
           ],
         ),
       ),

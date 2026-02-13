@@ -11,11 +11,11 @@
     used as splash image. -->
     
     <item
-        android:width="100dp"
-        android:height="100dp"
+        android:width="200dp"
+        android:height="200dp"
         android:gravity="center">
         <bitmap
             android:gravity="fill"
-            android:src="@mipmap/launcher_icon" />
+            android:src="@drawable/splash_screen_icon" />
     </item>
 </layer-list>

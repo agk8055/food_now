@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_now/screens/search_screen.dart';
+import 'package:food_now/services/location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -42,12 +43,15 @@ class _HomeAppBarState extends State<HomeAppBar> {
     // However, if user changes location, cache is stale.
     // Given the prompt, I will prioritize cache if available. If not available, fetch.
     if (cachedAddress == null || cachedAddress.isEmpty) {
-      await _fetchAddressFromFirestore(prefs);
+      await _fetchAddress(prefs);
     }
   }
 
-  Future<void> _fetchAddressFromFirestore(SharedPreferences prefs) async {
+  Future<void> _fetchAddress(SharedPreferences prefs) async {
     final user = FirebaseAuth.instance.currentUser;
+    String? fetchedAddress;
+
+    // 1. Try fetching from Firestore if user is logged in
     if (user != null) {
       try {
         final doc = await FirebaseFirestore.instance
@@ -57,25 +61,42 @@ class _HomeAppBarState extends State<HomeAppBar> {
         if (doc.exists) {
           final data = doc.data();
           final location = data?['location'] as Map<String, dynamic>?;
-          final address = location?['address'] as String?;
-
-          if (address != null && address.isNotEmpty) {
-            await prefs.setString('cached_address', address);
-            if (mounted) {
-              setState(() {
-                _address = address;
-              });
-            }
-          } else {
-            if (mounted) {
-              setState(() {
-                _address = "Location not set";
-              });
-            }
-          }
+          fetchedAddress = location?['address'] as String?;
         }
       } catch (e) {
-        debugPrint("Error fetching address: $e");
+        debugPrint("Error fetching address from Firestore: $e");
+      }
+    }
+
+    // 2. If no address found (user not logged in or data missing), try device location
+    if (fetchedAddress == null || fetchedAddress.isEmpty) {
+      try {
+        final locationService = LocationService();
+        final position = await locationService.getCurrentPosition();
+        if (position != null) {
+          fetchedAddress = await locationService.getAddressFromPosition(
+            position,
+          );
+        }
+      } catch (e) {
+        debugPrint("Error fetching device location: $e");
+      }
+    }
+
+    // 3. Update State & Cache
+    if (fetchedAddress != null && fetchedAddress.isNotEmpty) {
+      await prefs.setString('cached_address', fetchedAddress);
+      if (mounted) {
+        setState(() {
+          _address = fetchedAddress!;
+        });
+      }
+    } else {
+      // Only update to error message if we still have the placeholder
+      if (mounted && _address == "Fetching location...") {
+        setState(() {
+          _address = "Location not set";
+        });
       }
     }
   }
