@@ -111,7 +111,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       toolbarHeight: 140,
       flexibleSpace: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF4CAF50),
+          color: Color(0xFF00bf63),
           borderRadius: BorderRadius.only(
             bottomLeft: Radius.circular(40),
             bottomRight: Radius.circular(40),
@@ -197,7 +197,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.mic, color: Color(0xFF4CAF50)), // Green Mic
+            Icon(Icons.mic, color: Color(0xFF00bf63)), // Green Mic
           ],
         ),
       ),

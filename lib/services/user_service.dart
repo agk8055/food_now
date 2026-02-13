@@ -100,4 +100,14 @@ class UserService {
       return null;
     }
   }
+
+  Future<void> updateFcmToken(String uid, String token) async {
+    try {
+      await _firestore.collection('users').doc(uid).set({
+        'fcmToken': token,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Error updating FCM token: $e");
+    }
+  }
 }

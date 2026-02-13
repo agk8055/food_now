@@ -11,6 +11,7 @@ import 'package:food_now/screens/seller_dashboard.dart';
 import 'package:food_now/screens/seller_registration_screen.dart';
 import 'package:food_now/screens/shop_rejected_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:food_now/services/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +29,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4CAF50),
-          primary: const Color(0xFF4CAF50),
+          seedColor: const Color(0xFF00bf63),
+          primary: const Color(0xFF00bf63),
         ),
         useMaterial3: true,
       ),
@@ -54,58 +55,79 @@ class AuthWrapper extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data != null) {
           final User user = snapshot.data!;
-          return FutureBuilder<String?>(
-            future: UserService().getUserRole(user.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+          return AuthenticatedUserHandler(key: ValueKey(user.uid), user: user);
+        }
+
+        // Not logged in
+        return const HomeScreen();
+      },
+    );
+  }
+}
+
+class AuthenticatedUserHandler extends StatefulWidget {
+  final User user;
+  const AuthenticatedUserHandler({super.key, required this.user});
+
+  @override
+  State<AuthenticatedUserHandler> createState() =>
+      _AuthenticatedUserHandlerState();
+}
+
+class _AuthenticatedUserHandlerState extends State<AuthenticatedUserHandler> {
+  @override
+  void initState() {
+    super.initState();
+    FcmService().initialize(widget.user.uid);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: UserService().getUserRole(widget.user.uid),
+      builder: (context, roleSnapshot) {
+        if (roleSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final role = roleSnapshot.data;
+        if (role == 'admin') {
+          return const AdminDashboard();
+        } else if (role == 'seller') {
+          return FutureBuilder<DocumentSnapshot?>(
+            future: UserService().getShop(widget.user.uid),
+            builder: (context, shopSnapshot) {
+              if (shopSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final role = roleSnapshot.data;
-              if (role == 'admin') {
-                return const AdminDashboard();
-              } else if (role == 'seller') {
-                return FutureBuilder<DocumentSnapshot?>(
-                  future: UserService().getShop(user.uid),
-                  builder: (context, shopSnapshot) {
-                    if (shopSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Scaffold(
-                        body: Center(child: CircularProgressIndicator()),
-                      );
-                    }
+              final shopDoc = shopSnapshot.data;
 
-                    final shopDoc = shopSnapshot.data;
-
-                    if (shopDoc == null) {
-                      // Case 1: No shop
-                      return const SellerRegistrationScreen();
-                    }
-
-                    final data = shopDoc.data() as Map<String, dynamic>;
-                    final status = data['verificationStatus'];
-
-                    if (status == 'rejected') {
-                      // Case 3: Rejected
-                      return const ShopRejectedScreen();
-                    }
-
-                    // Case 2: Exists (Pending/Approved)
-                    return const SellerDashboard();
-                  },
-                );
-              } else {
-                // Default to HomeScreen for buyers or unknown roles
-                return const HomeScreen();
+              if (shopDoc == null) {
+                // Case 1: No shop
+                return const SellerRegistrationScreen();
               }
+
+              final data = shopDoc.data() as Map<String, dynamic>;
+              final status = data['verificationStatus'];
+
+              if (status == 'rejected') {
+                // Case 3: Rejected
+                return const ShopRejectedScreen();
+              }
+
+              // Case 2: Exists (Pending/Approved)
+              return const SellerDashboard();
             },
           );
+        } else {
+          // Default to HomeScreen for buyers or unknown roles
+          return const HomeScreen();
         }
-
-        // Not logged in
-        return const HomeScreen();
       },
     );
   }

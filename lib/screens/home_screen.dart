@@ -252,7 +252,7 @@ class HomeBody extends StatelessWidget {
         "title": "CATERING",
         "subtitle": "DISCOVER NEARBY",
         "offer": "SURPLUS SPECIALS",
-        "offerColor": const Color(0xFF4CAF50), // Green for this one
+        "offerColor": const Color(0xFF00bf63), // Green for this one
         "image":
             "https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&q=80&w=200", // Catering/Venue
         "index": 1,
@@ -288,7 +288,7 @@ class HomeBody extends StatelessWidget {
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
+                    color: Colors.grey.withValues(alpha: .05),
                     blurRadius: 5,
                     offset: const Offset(0, 2),
                   ),
