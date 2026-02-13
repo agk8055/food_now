@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/seller_registration_screen.dart';
 
 class SellerBanner extends StatelessWidget {
   const SellerBanner({super.key});
@@ -27,10 +28,11 @@ class SellerBanner extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navigate to seller registration or info page
-            // For now just a placeholder action or show dialog
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Seller registration coming soon!")),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SellerRegistrationScreen(),
+              ),
             );
           },
           borderRadius: BorderRadius.circular(16),

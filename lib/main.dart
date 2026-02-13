@@ -8,6 +8,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/user_service.dart';
 import 'package:food_now/screens/admin_dashboard.dart';
 import 'package:food_now/screens/seller_dashboard.dart';
+import 'package:food_now/screens/seller_registration_screen.dart';
+import 'package:food_now/screens/shop_rejected_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +67,35 @@ class AuthWrapper extends StatelessWidget {
               if (role == 'admin') {
                 return const AdminDashboard();
               } else if (role == 'seller') {
-                return const SellerDashboard();
+                return FutureBuilder<DocumentSnapshot?>(
+                  future: UserService().getShop(user.uid),
+                  builder: (context, shopSnapshot) {
+                    if (shopSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    final shopDoc = shopSnapshot.data;
+
+                    if (shopDoc == null) {
+                      // Case 1: No shop
+                      return const SellerRegistrationScreen();
+                    }
+
+                    final data = shopDoc.data() as Map<String, dynamic>;
+                    final status = data['verificationStatus'];
+
+                    if (status == 'rejected') {
+                      // Case 3: Rejected
+                      return const ShopRejectedScreen();
+                    }
+
+                    // Case 2: Exists (Pending/Approved)
+                    return const SellerDashboard();
+                  },
+                );
               } else {
                 // Default to HomeScreen for buyers or unknown roles
                 return const HomeScreen();

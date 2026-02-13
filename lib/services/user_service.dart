@@ -83,4 +83,21 @@ class UserService {
       rethrow;
     }
   }
+
+  Future<DocumentSnapshot?> getShop(String uid) async {
+    try {
+      final query = await _firestore
+          .collection('shops')
+          .where('ownerId', isEqualTo: uid)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        return query.docs.first;
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching shop: $e");
+      return null;
+    }
+  }
 }

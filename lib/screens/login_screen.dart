@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 
 import 'package:food_now/screens/admin_dashboard.dart';
 import 'package:food_now/screens/seller_dashboard.dart';
+import 'package:food_now/screens/seller_registration_screen.dart';
+import 'package:food_now/screens/shop_rejected_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -70,11 +72,42 @@ class _LoginScreenState extends State<LoginScreen> {
               (route) => false,
             );
           } else if (role == 'seller') {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const SellerDashboard()),
-              (route) => false,
-            );
+            final shopDoc = await _userService.getShop(user.uid);
+            if (mounted) {
+              if (shopDoc == null) {
+                // Case 1: No Shop
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SellerRegistrationScreen(),
+                  ),
+                  (route) => false,
+                );
+              } else {
+                final data = shopDoc.data() as Map<String, dynamic>;
+                final status = data['verificationStatus'];
+
+                if (status == 'rejected') {
+                  // Case 3: Rejected
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ShopRejectedScreen(),
+                    ),
+                    (route) => false,
+                  );
+                } else {
+                  // Case 2: Exists (Pending or Approved)
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SellerDashboard(),
+                    ),
+                    (route) => false,
+                  );
+                }
+              }
+            }
           } else if (role == 'admin') {
             Navigator.pushAndRemoveUntil(
               context,
