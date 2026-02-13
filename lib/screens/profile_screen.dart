@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
+import 'package:food_now/screens/buyer_orders_screen.dart'; // Add this import
 import 'package:food_now/services/auth_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -175,9 +176,6 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   }
 
   Future<void> _fetchFromFirestore() async {
-    // Only show loading if we don't have data yet?
-    // Or show loading indicator on top?
-    // Since we want to avoid flicker, let's only set loading if we have no data.
     if (_userData == null && mounted) setState(() => _isLoading = true);
 
     try {
@@ -188,7 +186,6 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        // Remove createdAt TextField (Timestamp) to avoid jsonEncode error
         data.remove('createdAt');
 
         final prefs = await SharedPreferences.getInstance();
@@ -252,7 +249,15 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                         icon: Icons.receipt_long_rounded,
                         title: "Your Orders",
                         subtitle: "View past orders & reorder",
-                        onTap: () {},
+                        onTap: () {
+                          // Added Navigation logic here
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BuyerOrdersScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _buildMenuItem(
                         icon: Icons.favorite_rounded,
@@ -312,7 +317,6 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                     EditProfileScreen(user: user, userData: userData),
               ),
             );
-            // Refresh data from Firestore after edit to ensure cache is updated
             _fetchFromFirestore();
           },
         ),
