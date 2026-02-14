@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_now/screens/search_screen.dart';
+import 'package:food_now/screens/location_search_screen.dart';
 import 'package:food_now/services/location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -36,15 +37,9 @@ class _HomeAppBarState extends State<HomeAppBar> {
       }
     }
 
-    // Always try to fetch fresh data if possible or if cache is empty?
-    // User requested: "this location can stored in shared preference, inoder to avoid unnessary reads from firestore"
-    // So if cache exists, MAYBE don't fetch from Firestore, or fetch only if cache is empty?
-    // Strict interpretation: "avoid unnecessary reads" -> prefer cache.
-    // However, if user changes location, cache is stale.
-    // Given the prompt, I will prioritize cache if available. If not available, fetch.
-    if (cachedAddress == null || cachedAddress.isEmpty) {
-      await _fetchAddress(prefs);
-    }
+    // Always try to fetch fresh data if possible to keep it up to date
+    // Stale-while-revalidate: Show cache first, then update
+    _fetchAddress(prefs);
   }
 
   Future<void> _fetchAddress(SharedPreferences prefs) async {
@@ -122,8 +117,17 @@ class _HomeAppBarState extends State<HomeAppBar> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           InkWell(
-            onTap: () {
-              // TODO: Open screen for changing location
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LocationSearchScreen(),
+                ),
+              );
+
+              if (result == true) {
+                _loadAddress();
+              }
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -140,7 +144,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           children: [
                             Flexible(
                               child: Text(
-                                _address,
+                                // Split address and take the first part
+                                _address.split(',')[0].trim(),
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
@@ -156,6 +161,17 @@ class _HomeAppBarState extends State<HomeAppBar> {
                             ),
                           ],
                         ),
+                        // Display the rest of the address if available
+                        if (_address.contains(','))
+                          Text(
+                            _address.split(',').sublist(1).join(',').trim(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
                   ),

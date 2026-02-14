@@ -47,10 +47,10 @@ class _SellerDashboardState extends State<SellerDashboard> {
 
   Future<void> _checkFcmToken() async {
     if (_user != null) {
-      final hasToken = await UserService().hasFcmToken(_user!.uid);
+      final hasToken = await UserService().hasFcmToken(_user.uid);
       if (!hasToken) {
         // If no token, initialize FCM to get and save it
-        await FcmService().initialize(_user!.uid);
+        await FcmService().initialize(_user.uid);
       }
     }
   }

@@ -57,8 +57,28 @@ class LocationService {
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        // Using locality (city) or subLocality (area)
-        return place.locality ?? place.subLocality ?? place.name;
+        List<String> parts = [];
+
+        // City/Place
+        String? city = place.locality;
+        if (city == null || city.isEmpty) city = place.subLocality;
+        if (city == null || city.isEmpty) city = place.name;
+
+        if (city != null && city.isNotEmpty) parts.add(city);
+
+        // District
+        if (place.subAdministrativeArea != null &&
+            place.subAdministrativeArea!.isNotEmpty) {
+          parts.add(place.subAdministrativeArea!);
+        }
+
+        // State
+        if (place.administrativeArea != null &&
+            place.administrativeArea!.isNotEmpty) {
+          parts.add(place.administrativeArea!);
+        }
+
+        return parts.join(', ');
       }
     } catch (e) {
       print("Error getting address: $e");
