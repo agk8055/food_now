@@ -19,7 +19,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
   void initState() {
     super.initState();
     if (_user != null) {
-      _shopFuture = UserService().getShop(_user!.uid);
+      _shopFuture = UserService().getShop(_user.uid);
     }
   }
 

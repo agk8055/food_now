@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:food_now/services/user_service.dart';
 import 'package:food_now/screens/login_screen.dart';
 
+import 'package:food_now/services/fcm_service.dart';
+
 // Modular screens and widget
 import 'package:food_now/widgets/seller_bottom_navigation_bar.dart';
 import 'package:food_now/screens/seller_orders_screen.dart';
@@ -20,7 +22,7 @@ class SellerDashboard extends StatefulWidget {
 
 class _SellerDashboardState extends State<SellerDashboard> {
   int _selectedIndex = 0;
-  
+
   // 1. Declare a Future variable
   late Future<DocumentSnapshot?> _shopFuture;
   final _user = AuthService().currentUser;
@@ -39,6 +41,17 @@ class _SellerDashboardState extends State<SellerDashboard> {
     // 2. Initialize the future exactly once in initState
     if (_user != null) {
       _shopFuture = UserService().getShop(_user.uid);
+      _checkFcmToken();
+    }
+  }
+
+  Future<void> _checkFcmToken() async {
+    if (_user != null) {
+      final hasToken = await UserService().hasFcmToken(_user!.uid);
+      if (!hasToken) {
+        // If no token, initialize FCM to get and save it
+        await FcmService().initialize(_user!.uid);
+      }
     }
   }
 
@@ -71,7 +84,9 @@ class _SellerDashboardState extends State<SellerDashboard> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: Color(0xFF00bf63))),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF00bf63)),
+            ),
           );
         }
 
@@ -129,10 +144,7 @@ class _SellerDashboardState extends State<SellerDashboard> {
           // Render the new Navigation Structure
           return Scaffold(
             // 4. Use IndexedStack to preserve the state of each page when switching tabs
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: _screens,
-            ),
+            body: IndexedStack(index: _selectedIndex, children: _screens),
             bottomNavigationBar: SellerBottomNavigationBar(
               selectedIndex: _selectedIndex,
               onItemTapped: _onItemTapped,

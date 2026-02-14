@@ -21,6 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   final UserService _userService = UserService();
   final LocationService _locationService = LocationService();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -28,6 +30,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -55,11 +59,16 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         // Save User Data (Create or Update)
+        // Save User Data (Create or Update)
         await _userService.saveUser(
           user: user,
           role: 'buyer', // Default role for now
           position: position,
           address: address,
+          name: isNewUser
+              ? _nameController.text.trim()
+              : null, // Only pass if new user sign up with email
+          phone: isNewUser ? _phoneController.text.trim() : null,
         );
 
         // Check Role and Navigate
@@ -162,6 +171,21 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (!_isLogin) {
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your full name')),
+        );
+        return;
+      }
+      if (_phoneController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your phone number')),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -169,7 +193,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ? await _authService.signInWithEmailAndPassword(email, password)
           : await _authService.signUpWithEmailAndPassword(email, password);
 
-      await _processAuthResult(userCredential, isNewUser: !_isLogin);
+      await _processAuthResult(
+        userCredential,
+        isNewUser: !_isLogin,
+      ); // Pass isNewUser boolean
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -219,6 +246,34 @@ class _LoginScreenState extends State<LoginScreen> {
                       : "Sign up to started with Food Now",
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
+                if (!_isLogin) ...[
+                  // Name Field
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Phone Field
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 const SizedBox(height: 48),
 
                 // Email Field

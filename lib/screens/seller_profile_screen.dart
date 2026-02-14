@@ -112,7 +112,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('shops')
-            .where('ownerId', isEqualTo: _user!.uid)
+            .where('ownerId', isEqualTo: _user.uid)
             .limit(1)
             .snapshots(),
         builder: (context, snapshot) {
@@ -129,7 +129,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
           final String shopName = data['shopName'] ?? "My Shop";
           final String category = data['category'] ?? "General";
           final String address = data['location']?['address'] ?? "No address set";
-          final String publicEmail = data['publicEmail'] ?? _user!.email ?? "No email";
+          final String publicEmail = data['publicEmail'] ?? _user.email ?? "No email";
           final String imageUrl = (data['images'] as List?)?.isNotEmpty == true ? data['images'][0] : "";
           final bool isOpen = data['isOpen'] ?? true;
 
@@ -208,7 +208,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                   child: SwitchListTile(
                     title: const Text("Accepting Orders", style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(isOpen ? "Your shop is currently VISIBLE" : "Your shop is currently HIDDEN"),
-                    activeColor: const Color(0xFF00bf63),
+                    activeThumbColor: const Color(0xFF00bf63),
                     value: isOpen,
                     onChanged: (val) => _toggleShopStatus(doc.id, isOpen),
                     secondary: Icon(

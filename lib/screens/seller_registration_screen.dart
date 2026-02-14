@@ -157,7 +157,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
         await _userService.saveUser(
           user: credential.user!,
           role: 'seller',
-          // phoneNumber: _phoneController.text.trim(), // Assuming UserService handles this or we add it
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
         );
         // Note: UserService in its current state might not save phone number based on previous read.
         // We'll proceed assuming basic user creation works.
@@ -358,7 +359,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: DropdownButtonFormField<String>(
-          value: _categoryController.text.isNotEmpty
+          initialValue: _categoryController.text.isNotEmpty
               ? _categoryController.text
               : null,
           items: _categories
