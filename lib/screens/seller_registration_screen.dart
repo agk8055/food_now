@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import 'seller_dashboard.dart';
 
+import 'package:food_now/services/location_service.dart';
+
 class SellerRegistrationScreen extends StatefulWidget {
   const SellerRegistrationScreen({super.key});
 
@@ -18,6 +20,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
   final _userService = UserService();
+  final _locationService = LocationService();
 
   // Step 1: User Signup Controllers
   final _nameController = TextEditingController();
@@ -67,8 +70,18 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             _descriptionController.text = data['description'] ?? '';
             _categoryController.text = data['category'] ?? '';
             _addressController.text = data['location']?['address'] ?? '';
-            _latController.text = (data['location']?['lat'] ?? 0.0).toString();
-            _lngController.text = (data['location']?['lng'] ?? 0.0).toString();
+
+            // Handle both new (GeoPoint) and old (lat/lng) formats
+            final geopoint = data['location']?['geopoint'] as GeoPoint?;
+            if (geopoint != null) {
+              _latController.text = geopoint.latitude.toString();
+              _lngController.text = geopoint.longitude.toString();
+            } else {
+              _latController.text = (data['location']?['lat'] ?? 0.0)
+                  .toString();
+              _lngController.text = (data['location']?['lng'] ?? 0.0)
+                  .toString();
+            }
 
             final images = data['images'] as List<dynamic>?;
             if (images != null && images.isNotEmpty) {
@@ -196,8 +209,14 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             _imageUrlController.text.trim(),
         ],
         'location': {
-          'lat': double.tryParse(_latController.text) ?? 0.0,
-          'lng': double.tryParse(_lngController.text) ?? 0.0,
+          'geohash': _locationService.getGeohash(
+            double.tryParse(_latController.text) ?? 0.0,
+            double.tryParse(_lngController.text) ?? 0.0,
+          ),
+          'geopoint': GeoPoint(
+            double.tryParse(_latController.text) ?? 0.0,
+            double.tryParse(_lngController.text) ?? 0.0,
+          ),
           'address': _addressController.text.trim(),
         },
         // Don't overwrite these if updating, mostly static for now but careful

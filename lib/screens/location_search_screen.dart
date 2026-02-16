@@ -88,7 +88,6 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         final address = await _locationService.getAddressFromPosition(position);
         if (address != null) {
           await _saveAndPop(
-            name: address.split(',')[0],
             lat: position.latitude.toString(),
             lon: position.longitude.toString(),
             formattedAddress: address,
@@ -128,16 +127,10 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
 
     final formattedAddress = addressParts.join(', ');
 
-    await _saveAndPop(
-      name: name,
-      lat: lat,
-      lon: lon,
-      formattedAddress: formattedAddress,
-    );
+    await _saveAndPop(lat: lat, lon: lon, formattedAddress: formattedAddress);
   }
 
   Future<void> _saveAndPop({
-    required String name,
     required String lat,
     required String lon,
     required String formattedAddress,
@@ -149,13 +142,15 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     // Save to Firestore if user is logged in
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      final double latDouble = double.tryParse(lat) ?? 0.0;
+      final double lonDouble = double.tryParse(lon) ?? 0.0;
+
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
         {
           'location': {
+            'geohash': _locationService.getGeohash(latDouble, lonDouble),
+            'geopoint': GeoPoint(latDouble, lonDouble),
             'address': formattedAddress,
-            'lat': lat,
-            'lon': lon,
-            'name': name,
           },
         },
       );

@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:dart_geohash/dart_geohash.dart';
 
 class LocationService {
   Future<bool> _handlePermission() async {
@@ -84,5 +85,10 @@ class LocationService {
       print("Error getting address: $e");
     }
     return null;
+  }
+
+  String getGeohash(double lat, double lng) {
+    GeoHasher geoHasher = GeoHasher();
+    return geoHasher.encode(lng, lat);
   }
 }

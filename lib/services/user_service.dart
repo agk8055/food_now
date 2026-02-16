@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
+import 'location_service.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -72,11 +73,21 @@ class UserService {
 
       // Always update location if provided
       if (position != null || address != null) {
+        final double lat =
+            position?.latitude ??
+            userDoc.data()?['location']?['geopoint']?.latitude ??
+            0.0;
+        final double lng =
+            position?.longitude ??
+            userDoc.data()?['location']?['geopoint']?.longitude ??
+            0.0;
+
+        final LocationService locationService = LocationService();
+        final String geohash = locationService.getGeohash(lat, lng);
+
         data['location'] = {
-          'lat':
-              position?.latitude ?? userDoc.data()?['location']?['lat'] ?? 0.0,
-          'lng':
-              position?.longitude ?? userDoc.data()?['location']?['lng'] ?? 0.0,
+          'geohash': geohash,
+          'geopoint': GeoPoint(lat, lng),
           'address': address ?? userDoc.data()?['location']?['address'] ?? '',
         };
       }
