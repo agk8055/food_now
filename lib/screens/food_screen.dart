@@ -34,19 +34,29 @@ class FoodScreen extends StatelessWidget {
             return const Center(child: Text("No restaurants found nearby."));
           }
 
+          // Filter out Supermarkets on client side to avoid index issues with 'isNotEqualTo'
+          final shops = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['category'] != 'Supermarket';
+          }).toList();
+
+          if (shops.isEmpty) {
+            return const Center(child: Text("No restaurants found nearby."));
+          }
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: shops.length,
             itemBuilder: (context, index) {
-              final shop = snapshot.data!.docs[index];
+              final shop = shops[index];
               final data = shop.data() as Map<String, dynamic>;
               final images = data['images'] as List<dynamic>?;
-              
+
               // Check if shop is open (default to true if field is missing)
               final bool isOpen = data['isOpen'] ?? true;
 
               return GestureDetector(
-                onTap: isOpen 
+                onTap: isOpen
                     ? () {
                         Navigator.push(
                           context,
@@ -61,21 +71,42 @@ class FoodScreen extends StatelessWidget {
                     : null, // Disable tap if closed
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 20),
-                  foregroundDecoration: isOpen 
-                      ? null 
+                  foregroundDecoration: isOpen
+                      ? null
                       : BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1), // Subtle grey overlay
+                          color: Colors.grey.withOpacity(
+                            0.1,
+                          ), // Subtle grey overlay
                           borderRadius: BorderRadius.circular(15),
                         ),
                   child: ColorFiltered(
                     // This applies the Black & White effect
-                    colorFilter: isOpen 
-                        ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) // Normal
+                    colorFilter: isOpen
+                        ? const ColorFilter.mode(
+                            Colors.transparent,
+                            BlendMode.multiply,
+                          ) // Normal
                         : const ColorFilter.matrix(<double>[
-                            0.2126, 0.7152, 0.0722, 0, 0,
-                            0.2126, 0.7152, 0.0722, 0, 0,
-                            0.2126, 0.7152, 0.0722, 0, 0,
-                            0,      0,      0,      1, 0,
+                            0.2126,
+                            0.7152,
+                            0.0722,
+                            0,
+                            0,
+                            0.2126,
+                            0.7152,
+                            0.0722,
+                            0,
+                            0,
+                            0.2126,
+                            0.7152,
+                            0.0722,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
                           ]), // Grayscale Matrix
                     child: Container(
                       decoration: BoxDecoration(
@@ -86,7 +117,7 @@ class FoodScreen extends StatelessWidget {
                             color: Colors.grey.shade200,
                             blurRadius: 10,
                             offset: const Offset(0, 5),
-                          )
+                          ),
                         ],
                       ),
                       child: Column(
@@ -122,9 +153,15 @@ class FoodScreen extends StatelessWidget {
                                     color: Colors.black.withOpacity(0.4),
                                     alignment: Alignment.center,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.white, width: 2),
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
@@ -147,7 +184,8 @@ class FoodScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       data['shopName'],
@@ -164,7 +202,9 @@ class FoodScreen extends StatelessWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           color: Colors.green[50],
-                                          borderRadius: BorderRadius.circular(5),
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
                                         ),
                                         child: Text(
                                           "★ ${data['rating'] ?? '4.0'}",
