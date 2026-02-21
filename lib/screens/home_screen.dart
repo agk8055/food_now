@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:food_now/services/location_service.dart';
+import 'package:food_now/screens/not_serviceable_screen.dart';
+import 'package:food_now/widgets/custom_loader.dart';
 import 'package:food_now/widgets/seller_banner.dart';
 import 'package:food_now/screens/profile_screen.dart';
 import 'package:food_now/widgets/bottom_navigation_bar.dart';
@@ -16,6 +22,114 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _isCheckingServiceability = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServiceability();
+  }
+
+  Future<void> _checkServiceability() async {
+    try {
+      GeoPoint? userLocation;
+      final User? user = FirebaseAuth.instance.currentUser;
+
+      // 1. Try Firestore
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data();
+          final location = data?['location'] as Map<String, dynamic>?;
+          if (location != null && location['geopoint'] != null) {
+            userLocation = location['geopoint'] as GeoPoint;
+          }
+        }
+      }
+
+      // 2. Try SharedPreferences
+      if (userLocation == null) {
+        final prefs = await SharedPreferences.getInstance();
+        final double? lat = prefs.getDouble('cached_geopoint_lat');
+        final double? lon = prefs.getDouble('cached_geopoint_lon');
+        if (lat != null && lon != null) {
+          userLocation = GeoPoint(lat, lon);
+        }
+      }
+
+      // 3. Try Device Location
+      if (userLocation == null) {
+        final locationService = LocationService();
+        final position = await locationService.getCurrentPosition();
+        if (position != null) {
+          userLocation = GeoPoint(position.latitude, position.longitude);
+        }
+      }
+
+      if (userLocation == null) {
+        // Can't determine location at all, let them in to search
+        if (mounted) {
+          setState(() {
+            _isCheckingServiceability = false;
+          });
+        }
+        return;
+      }
+
+      // Check for nearby approved shops
+      final shopsSnapshot = await FirebaseFirestore.instance
+          .collection('shops')
+          .where('verificationStatus', isEqualTo: 'approved')
+          .get();
+
+      bool hasNearbyShop = false;
+
+      for (var doc in shopsSnapshot.docs) {
+        final data = doc.data();
+        final location = data['location'] as Map<String, dynamic>?;
+        if (location != null && location['geopoint'] != null) {
+          final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
+          final double distance = Geolocator.distanceBetween(
+            userLocation.latitude,
+            userLocation.longitude,
+            shopPoint.latitude,
+            shopPoint.longitude,
+          );
+
+          if (distance <= 10000) {
+            // 10km radius
+            hasNearbyShop = true;
+            break;
+          }
+        }
+      }
+
+      if (mounted) {
+        if (!hasNearbyShop) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotServiceableScreen(),
+            ),
+          );
+        } else {
+          setState(() {
+            _isCheckingServiceability = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking serviceability: $e");
+      if (mounted) {
+        setState(() {
+          _isCheckingServiceability = false;
+        });
+      }
+    }
+  }
 
   // List of screens for navigation
   // Using a method to build screens to access context if needed, or simple list
@@ -37,6 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingServiceability) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CustomLoader()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       // Only show AppBar on Home Screen for now, or customize per screen

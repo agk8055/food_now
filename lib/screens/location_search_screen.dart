@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:food_now/screens/not_serviceable_screen.dart';
 import '../services/location_service.dart';
 
 class LocationSearchScreen extends StatefulWidget {
@@ -136,29 +138,83 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     required String lon,
     required String formattedAddress,
   }) async {
-    // Save to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('cached_address', formattedAddress);
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Save to Firestore if user is logged in
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    try {
       final double latDouble = double.tryParse(lat) ?? 0.0;
       final double lonDouble = double.tryParse(lon) ?? 0.0;
+      final String geohash = _locationService.getGeohash(latDouble, lonDouble);
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
-        {
-          'location': {
-            'geohash': _locationService.getGeohash(latDouble, lonDouble),
-            'geopoint': GeoPoint(latDouble, lonDouble),
-            'address': formattedAddress,
-          },
-        },
-      );
-    }
+      // Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_address', formattedAddress);
+      await prefs.setDouble('cached_geopoint_lat', latDouble);
+      await prefs.setDouble('cached_geopoint_lon', lonDouble);
+      await prefs.setString('cached_geohash', geohash);
 
-    if (mounted) {
-      Navigator.pop(context, true); // Return true to indicate update
+      // Save to Firestore if user is logged in
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+              'location': {
+                'geohash': geohash,
+                'geopoint': GeoPoint(latDouble, lonDouble),
+                'address': formattedAddress,
+              },
+            });
+      }
+
+      // Check serviceability
+      final shopsSnapshot = await FirebaseFirestore.instance
+          .collection('shops')
+          .where('verificationStatus', isEqualTo: 'approved')
+          .get();
+
+      bool isServiceable = false;
+
+      for (var doc in shopsSnapshot.docs) {
+        final data = doc.data();
+        final location = data['location'] as Map<String, dynamic>?;
+        if (location != null && location['geopoint'] != null) {
+          final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
+          final double distance = Geolocator.distanceBetween(
+            latDouble,
+            lonDouble,
+            shopPoint.latitude,
+            shopPoint.longitude,
+          );
+
+          if (distance <= 10000) {
+            isServiceable = true;
+            break;
+          }
+        }
+      }
+
+      if (mounted) {
+        if (isServiceable) {
+          Navigator.pop(context, true); // Return true to indicate update
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotServiceableScreen(),
+            ),
+            (route) => false,
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

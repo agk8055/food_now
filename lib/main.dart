@@ -13,15 +13,105 @@ import 'package:food_now/screens/seller_registration_screen.dart';
 import 'package:food_now/screens/shop_rejected_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:food_now/services/fcm_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:food_now/services/location_service.dart';
+import 'package:food_now/screens/not_serviceable_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+
+  bool isServiceable = await _checkServiceability();
+
+  runApp(MyApp(isServiceable: isServiceable));
+}
+
+Future<bool> _checkServiceability() async {
+  try {
+    GeoPoint? userLocation;
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    // 1. Try Firestore and check role
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        final data = doc.data();
+
+        // Skip serviceability check for admins and sellers
+        if (data?['role'] == 'admin' || data?['role'] == 'seller') {
+          return true;
+        }
+
+        final location = data?['location'] as Map<String, dynamic>?;
+        if (location != null && location['geopoint'] != null) {
+          userLocation = location['geopoint'] as GeoPoint;
+        }
+      }
+    }
+
+    // 2. Try SharedPreferences
+    if (userLocation == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final double? lat = prefs.getDouble('cached_geopoint_lat');
+      final double? lon = prefs.getDouble('cached_geopoint_lon');
+      if (lat != null && lon != null) {
+        userLocation = GeoPoint(lat, lon);
+      }
+    }
+
+    // 3. Try Device Location
+    if (userLocation == null) {
+      final locationService = LocationService();
+      final position = await locationService.getCurrentPosition();
+      if (position != null) {
+        userLocation = GeoPoint(position.latitude, position.longitude);
+      }
+    }
+
+    if (userLocation == null) {
+      // Can't determine location at all, let them in to search
+      return true;
+    }
+
+    // Check for nearby approved shops
+    final shopsSnapshot = await FirebaseFirestore.instance
+        .collection('shops')
+        .where('verificationStatus', isEqualTo: 'approved')
+        .get();
+
+    for (var doc in shopsSnapshot.docs) {
+      final data = doc.data();
+      final location = data['location'] as Map<String, dynamic>?;
+      if (location != null && location['geopoint'] != null) {
+        final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
+        final double distance = Geolocator.distanceBetween(
+          userLocation.latitude,
+          userLocation.longitude,
+          shopPoint.latitude,
+          shopPoint.longitude,
+        );
+
+        if (distance <= 10000) {
+          // 10km radius
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (e) {
+    debugPrint("Error checking serviceability: $e");
+    return true; // fail-open
+  }
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isServiceable;
+  const MyApp({super.key, required this.isServiceable});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +125,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const AuthWrapper(),
+      home: isServiceable ? const AuthWrapper() : const NotServiceableScreen(),
     );
   }
 }

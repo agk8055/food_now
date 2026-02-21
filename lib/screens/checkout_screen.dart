@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/custom_loader.dart';
+import 'login_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String shopId, shopName;
@@ -27,7 +28,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _placeOrder() async {
     setState(() => _isProcessing = true);
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+      setState(() => _isProcessing = false);
+      return;
+    }
 
     String otp = (Random().nextInt(9000) + 1000).toString();
 

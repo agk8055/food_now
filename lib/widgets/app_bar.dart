@@ -63,7 +63,12 @@ class _HomeAppBarState extends State<HomeAppBar> {
       }
     }
 
-    // 2. If no address found (user not logged in or data missing), try device location
+    // 2. If no address found from Firestore, check cache first to avoid overwriting manual selections
+    if (fetchedAddress == null || fetchedAddress.isEmpty) {
+      fetchedAddress = prefs.getString('cached_address');
+    }
+
+    // 3. If STILL no address, try getting the device location
     if (fetchedAddress == null || fetchedAddress.isEmpty) {
       try {
         final locationService = LocationService();
@@ -72,13 +77,21 @@ class _HomeAppBarState extends State<HomeAppBar> {
           fetchedAddress = await locationService.getAddressFromPosition(
             position,
           );
+
+          final String geohash = locationService.getGeohash(
+            position.latitude,
+            position.longitude,
+          );
+          await prefs.setDouble('cached_geopoint_lat', position.latitude);
+          await prefs.setDouble('cached_geopoint_lon', position.longitude);
+          await prefs.setString('cached_geohash', geohash);
         }
       } catch (e) {
         debugPrint("Error fetching device location: $e");
       }
     }
 
-    // 3. Update State & Cache
+    // 4. Update State & Cache
     if (fetchedAddress != null && fetchedAddress.isNotEmpty) {
       await prefs.setString('cached_address', fetchedAddress);
       if (mounted) {

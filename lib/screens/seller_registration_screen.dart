@@ -40,6 +40,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
 
   bool _isSigningUp = true; // Toggle between Signup and Shop Creation
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   final List<String> _categories = [
     'Restaurant',
@@ -324,7 +325,17 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
         controller: _passwordController,
         label: 'Password',
         icon: Icons.lock,
-        obscureText: true,
+        obscureText: _obscurePassword,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
         validator: (v) => v!.length < 6 ? 'Min 6 chars' : null,
       ),
       const SizedBox(height: 16),
@@ -473,12 +484,14 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
     int maxLines = 1,
     bool obscureText = false,
     String? Function(String?)? validator,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       keyboardType: keyboardType,
