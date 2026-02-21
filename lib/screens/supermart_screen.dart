@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'shop_menu_screen.dart';
 
 class SupermartScreen extends StatelessWidget {
@@ -26,9 +27,7 @@ class SupermartScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00bf63)),
-            );
+            return const Center(child: CustomLoader());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text("No supermarkets found nearby."));

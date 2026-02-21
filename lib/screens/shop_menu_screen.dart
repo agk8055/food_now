@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'checkout_screen.dart';
 
 class ShopMenuScreen extends StatefulWidget {
@@ -19,7 +20,7 @@ class ShopMenuScreen extends StatefulWidget {
 class _ShopMenuScreenState extends State<ShopMenuScreen> {
   // Cart maps Item ID to a Map of item details including selected quantity
   final Map<String, Map<String, dynamic>> _cart = {};
-  
+
   // 1. Declare a Stream variable
   late Stream<QuerySnapshot> _foodItemsStream;
 
@@ -56,11 +57,18 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
   }
 
   int _getTotalItems() {
-    return _cart.values.fold(0, (sum, item) => sum + (item['cartQuantity'] as int));
+    return _cart.values.fold(
+      0,
+      (sum, item) => sum + (item['cartQuantity'] as int),
+    );
   }
 
   double _getTotalPrice() {
-    return _cart.values.fold(0.0, (sum, item) => sum + ((item['price'] as double) * (item['cartQuantity'] as int)));
+    return _cart.values.fold(
+      0.0,
+      (sum, item) =>
+          sum + ((item['price'] as double) * (item['cartQuantity'] as int)),
+    );
   }
 
   @override
@@ -68,7 +76,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.shopName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.shopName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
@@ -80,14 +91,18 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               stream: _foodItemsStream, // 3. Use the cached stream here
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF00bf63)));
+                  return const Center(child: CustomLoader());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No items available right now."));
+                  return const Center(
+                    child: Text("No items available right now."),
+                  );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 80), // Space for cart bar
+                  padding: const EdgeInsets.only(
+                    bottom: 80,
+                  ), // Space for cart bar
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
                     final doc = snapshot.data!.docs[index];
@@ -97,7 +112,9 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                     return Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade100),
+                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,17 +125,26 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                               children: [
                                 Text(
                                   item['name'],
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   "₹${item['discountedPrice']}",
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   "Expires: ${item['expiryDate']} at ${item['expiryTime']}",
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
@@ -126,13 +152,15 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                           const SizedBox(width: 16),
                           SizedBox(
                             width: 110,
-                            height: 120, 
+                            height: 120,
                             child: Stack(
                               alignment: Alignment.topCenter,
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: (item['imageUrl'] != null && item['imageUrl'] != "")
+                                  child:
+                                      (item['imageUrl'] != null &&
+                                          item['imageUrl'] != "")
                                       ? Image.network(
                                           item['imageUrl'],
                                           width: 110,
@@ -143,7 +171,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                           width: 110,
                                           height: 105,
                                           color: Colors.grey[100],
-                                          child: const Icon(Icons.fastfood, color: Colors.grey),
+                                          child: const Icon(
+                                            Icons.fastfood,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                 ),
                                 Positioned(
@@ -153,13 +184,15 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withOpacity(0.05),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
-                                        )
+                                        ),
                                       ],
                                     ),
                                     child: currentQty == 0
@@ -182,19 +215,40 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               IconButton(
-                                                icon: const Icon(Icons.remove, color: Colors.black54, size: 18),
-                                                onPressed: () => _updateCart(doc, -1),
-                                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                icon: const Icon(
+                                                  Icons.remove,
+                                                  color: Colors.black54,
+                                                  size: 18,
+                                                ),
+                                                onPressed: () =>
+                                                    _updateCart(doc, -1),
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 32,
+                                                      minHeight: 32,
+                                                    ),
                                                 padding: EdgeInsets.zero,
                                               ),
                                               Text(
                                                 "$currentQty",
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
                                               ),
                                               IconButton(
-                                                icon: const Icon(Icons.add, color: Color(0xFF00bf63), size: 18),
-                                                onPressed: () => _updateCart(doc, 1),
-                                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                icon: const Icon(
+                                                  Icons.add,
+                                                  color: Color(0xFF00bf63),
+                                                  size: 18,
+                                                ),
+                                                onPressed: () =>
+                                                    _updateCart(doc, 1),
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 32,
+                                                      minHeight: 32,
+                                                    ),
                                                 padding: EdgeInsets.zero,
                                               ),
                                             ],
@@ -212,13 +266,19 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               },
             ),
           ),
-          
+
           if (_cart.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
               ),
               child: SafeArea(
                 child: Row(
@@ -227,8 +287,21 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("${_getTotalItems()} ITEM${_getTotalItems() > 1 ? 'S' : ''}", style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                        Text("₹${_getTotalPrice()}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          "${_getTotalItems()} ITEM${_getTotalItems() > 1 ? 'S' : ''}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "₹${_getTotalPrice()}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     ElevatedButton(
@@ -247,10 +320,22 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00bf63),
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text("Next ➔", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Next ➔",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),

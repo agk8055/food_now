@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/user_service.dart';
@@ -21,7 +22,7 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
   final _expiryDateController = TextEditingController();
   final _expiryTimeController = TextEditingController();
   final _imageUrlController = TextEditingController();
-  
+
   bool _isLoading = false;
 
   @override
@@ -109,9 +110,9 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding item: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding item: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -123,7 +124,10 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Add Surplus Food", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Add Surplus Food",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -142,7 +146,7 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _descriptionController,
                 label: 'Description',
@@ -186,7 +190,10 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
               ),
               const SizedBox(height: 24),
 
-              const Text("Expiration Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text(
+                "Expiration Details",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -235,12 +242,21 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
                   onPressed: _isLoading ? null : _submitItem,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00bf63),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("List Food Item", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ? const CustomLoader(width: 30, height: 30)
+                      : const Text(
+                          "List Food Item",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ],

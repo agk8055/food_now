@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:food_now/services/user_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -128,10 +129,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
+                          child: CustomLoader(width: 20, height: 20),
                         )
                       : const Text(
                           "Save Changes",

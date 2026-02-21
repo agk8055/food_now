@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/screens/login_screen.dart';
 
@@ -67,7 +68,7 @@ class AdminDashboard extends StatelessWidget {
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CustomLoader());
           }
 
           if (snapshot.data!.docs.isEmpty) {

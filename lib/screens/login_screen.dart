@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:food_now/screens/home_screen.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/services/user_service.dart';
@@ -305,9 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
 
                 if (_isLoading)
-                  const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
-                  )
+                  const Center(child: CustomLoader())
                 else
                   Column(
                     children: [

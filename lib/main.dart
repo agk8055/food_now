@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:food_now/widgets/custom_loader.dart';
 import 'package:food_now/screens/home_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -48,9 +49,7 @@ class AuthWrapper extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CustomLoader()));
         }
 
         if (snapshot.hasData && snapshot.data != null) {
@@ -87,9 +86,7 @@ class _AuthenticatedUserHandlerState extends State<AuthenticatedUserHandler> {
       future: UserService().getUserRole(widget.user.uid),
       builder: (context, roleSnapshot) {
         if (roleSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CustomLoader()));
         }
 
         final role = roleSnapshot.data;
@@ -100,9 +97,7 @@ class _AuthenticatedUserHandlerState extends State<AuthenticatedUserHandler> {
             future: UserService().getShop(widget.user.uid),
             builder: (context, shopSnapshot) {
               if (shopSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return const Scaffold(body: Center(child: CustomLoader()));
               }
 
               final shopDoc = shopSnapshot.data;

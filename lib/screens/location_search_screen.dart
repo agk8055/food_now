@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -239,7 +240,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
             ),
             const SizedBox(height: 16),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              const Center(child: CustomLoader())
             else
               Expanded(
                 child: ListView.separated(

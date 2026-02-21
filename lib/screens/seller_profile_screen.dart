@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/screens/login_screen.dart';
+import '../widgets/custom_loader.dart';
 
 class SellerProfileScreen extends StatefulWidget {
   const SellerProfileScreen({super.key});
@@ -13,7 +14,7 @@ class SellerProfileScreen extends StatefulWidget {
 
 class _SellerProfileScreenState extends State<SellerProfileScreen> {
   final User? _user = FirebaseAuth.instance.currentUser;
-  
+
   // Toggle Shop Availability
   Future<void> _toggleShopStatus(String shopId, bool currentStatus) async {
     await FirebaseFirestore.instance.collection('shops').doc(shopId).update({
@@ -24,12 +25,18 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
   // Edit Shop Details Dialog (Restricted fields)
   void _showEditShopDialog(BuildContext context, DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Pre-fill controllers
     final nameController = TextEditingController(text: data['shopName']);
-    final addressController = TextEditingController(text: data['location']?['address'] ?? '');
-    final emailController = TextEditingController(text: data['publicEmail'] ?? _user?.email ?? '');
-    final imageController = TextEditingController(text: (data['images'] as List?)?.first ?? '');
+    final addressController = TextEditingController(
+      text: data['location']?['address'] ?? '',
+    );
+    final emailController = TextEditingController(
+      text: data['publicEmail'] ?? _user?.email ?? '',
+    );
+    final imageController = TextEditingController(
+      text: (data['images'] as List?)?.first ?? '',
+    );
 
     showDialog(
       context: context,
@@ -42,41 +49,65 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: "Shop Name", border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: "Shop Name",
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(labelText: "Public Contact Email", border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: "Public Contact Email",
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: addressController,
-                decoration: const InputDecoration(labelText: "Address", border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: "Address",
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: imageController,
-                decoration: const InputDecoration(labelText: "Image URL", border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: "Image URL",
+                  border: OutlineInputBorder(),
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+          ),
           ElevatedButton(
             onPressed: () async {
               // Update specific fields only
-              await FirebaseFirestore.instance.collection('shops').doc(doc.id).update({
-                'shopName': nameController.text.trim(),
-                'publicEmail': emailController.text.trim(),
-                'location.address': addressController.text.trim(), // Dot notation to update nested field
-                'images': [imageController.text.trim()], 
-              });
+              await FirebaseFirestore.instance
+                  .collection('shops')
+                  .doc(doc.id)
+                  .update({
+                    'shopName': nameController.text.trim(),
+                    'publicEmail': emailController.text.trim(),
+                    'location.address': addressController.text
+                        .trim(), // Dot notation to update nested field
+                    'images': [imageController.text.trim()],
+                  });
               if (mounted) Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00bf63)),
-            child: const Text("SAVE CHANGES", style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00bf63),
+            ),
+            child: const Text(
+              "SAVE CHANGES",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -90,7 +121,10 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("Shop Profile", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+        title: const Text(
+          "Shop Profile",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
+        ),
         backgroundColor: Colors.white,
         elevation: 0.5,
         centerTitle: false,
@@ -106,7 +140,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                 );
               }
             },
-          )
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -117,7 +151,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF00bf63)));
+            return const Center(child: CustomLoader());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text("Shop profile not found."));
@@ -125,12 +159,16 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
 
           final doc = snapshot.data!.docs.first;
           final data = doc.data() as Map<String, dynamic>;
-          
+
           final String shopName = data['shopName'] ?? "My Shop";
           final String category = data['category'] ?? "General";
-          final String address = data['location']?['address'] ?? "No address set";
-          final String publicEmail = data['publicEmail'] ?? _user.email ?? "No email";
-          final String imageUrl = (data['images'] as List?)?.isNotEmpty == true ? data['images'][0] : "";
+          final String address =
+              data['location']?['address'] ?? "No address set";
+          final String publicEmail =
+              data['publicEmail'] ?? _user.email ?? "No email";
+          final String imageUrl = (data['images'] as List?)?.isNotEmpty == true
+              ? data['images'][0]
+              : "";
           final bool isOpen = data['isOpen'] ?? true;
 
           return SingleChildScrollView(
@@ -145,12 +183,17 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
                         image: imageUrl.isNotEmpty
-                            ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                            ? DecorationImage(
+                                image: NetworkImage(imageUrl),
+                                fit: BoxFit.cover,
+                              )
                             : null,
                       ),
                       child: imageUrl.isEmpty
                           ? Icon(Icons.store, size: 80, color: Colors.grey[400])
-                          : Container(color: Colors.black.withOpacity(0.3)), // Dark overlay
+                          : Container(
+                              color: Colors.black.withOpacity(0.3),
+                            ), // Dark overlay
                     ),
                     Positioned(
                       bottom: 20,
@@ -164,19 +207,29 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                               color: Colors.white,
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
-                              shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+                              shadows: [
+                                Shadow(color: Colors.black54, blurRadius: 10),
+                              ],
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             margin: const EdgeInsets.only(top: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF00bf63),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              category.toUpperCase(), // Category displayed but not editable
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                              category
+                                  .toUpperCase(), // Category displayed but not editable
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
                             ),
                           ),
                         ],
@@ -199,15 +252,30 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                 // 2. Status Toggle
                 Container(
                   margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
                   child: SwitchListTile(
-                    title: const Text("Accepting Orders", style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(isOpen ? "Your shop is currently VISIBLE" : "Your shop is currently HIDDEN"),
+                    title: const Text(
+                      "Accepting Orders",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      isOpen
+                          ? "Your shop is currently VISIBLE"
+                          : "Your shop is currently HIDDEN",
+                    ),
                     activeThumbColor: const Color(0xFF00bf63),
                     value: isOpen,
                     onChanged: (val) => _toggleShopStatus(doc.id, isOpen),
@@ -228,28 +296,46 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                   ),
                   child: Column(
                     children: [
-                      _buildInfoTile(Icons.location_on_outlined, "Address", address),
+                      _buildInfoTile(
+                        Icons.location_on_outlined,
+                        "Address",
+                        address,
+                      ),
                       const Divider(height: 1, indent: 56),
-                      _buildInfoTile(Icons.email_outlined, "Public Email", publicEmail),
+                      _buildInfoTile(
+                        Icons.email_outlined,
+                        "Public Email",
+                        publicEmail,
+                      ),
                       const Divider(height: 1, indent: 56),
-                      _buildInfoTile(Icons.verified_user_outlined, "Shop ID", doc.id, isCopyable: true),
+                      _buildInfoTile(
+                        Icons.verified_user_outlined,
+                        "Shop ID",
+                        doc.id,
+                        isCopyable: true,
+                      ),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 30),
-                
+
                 TextButton(
                   onPressed: () async {
                     await AuthService().signOut();
                     if (mounted) {
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
                         (route) => false,
                       );
                     }
                   },
-                  child: const Text("Sign Out", style: TextStyle(color: Colors.grey)),
+                  child: const Text(
+                    "Sign Out",
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -260,16 +346,32 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String title, String subtitle, {bool isCopyable = false}) {
+  Widget _buildInfoTile(
+    IconData icon,
+    String title,
+    String subtitle, {
+    bool isCopyable = false,
+  }) {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Icon(icon, color: Colors.black54, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.black87)),
-      trailing: isCopyable ? const Icon(Icons.copy, size: 16, color: Colors.grey) : null,
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+      ),
+      trailing: isCopyable
+          ? const Icon(Icons.copy, size: 16, color: Colors.grey)
+          : null,
     );
   }
 }

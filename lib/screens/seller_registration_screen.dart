@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../widgets/custom_loader.dart';
 import 'seller_dashboard.dart';
 
 import 'package:food_now/services/location_service.dart';
@@ -336,7 +337,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       ),
       const SizedBox(height: 32),
       _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const CustomLoader()
           : ElevatedButton(
               onPressed: _registerUser,
               style: _buttonStyle(),
@@ -450,7 +451,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       ),
       const SizedBox(height: 32),
       _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const CustomLoader()
           : ElevatedButton(
               onPressed: _submitShop,
               style: _buttonStyle(),

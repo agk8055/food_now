@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 
 import 'dart:convert';
 import 'package:food_now/screens/edit_profile_screen.dart';
@@ -27,11 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       stream: _authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
-            ),
-          );
+          return const Scaffold(body: Center(child: CustomLoader()));
         }
 
         if (snapshot.hasData) {
@@ -212,11 +209,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading && _userData == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
-        ),
-      );
+      return const Scaffold(body: Center(child: CustomLoader()));
     }
 
     String displayName = _userData?['name'] as String? ?? "";

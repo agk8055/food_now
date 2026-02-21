@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_loader.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:food_now/services/user_service.dart';
@@ -83,11 +84,7 @@ class _SellerDashboardState extends State<SellerDashboard> {
       future: _shopFuture, // 3. Use the cached future here
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF00bf63)),
-            ),
-          );
+          return const Scaffold(body: Center(child: CustomLoader()));
         }
 
         if (!snapshot.hasData || snapshot.data == null) {
