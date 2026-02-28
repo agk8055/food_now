@@ -110,8 +110,9 @@ class _SupermartScreenState extends State<SupermartScreen> {
                   shops = shops.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final location = data['location'] as Map<String, dynamic>?;
-                    if (location == null || location['geopoint'] == null)
+                    if (location == null || location['geopoint'] == null) {
                       return false;
+                    }
 
                     final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
                     final double distance = Geolocator.distanceBetween(

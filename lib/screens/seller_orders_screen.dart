@@ -168,10 +168,11 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
             builder: (context, orderSnapshot) {
-              if (orderSnapshot.hasError)
+              if (orderSnapshot.hasError) {
                 return Scaffold(
                   body: Center(child: Text('Error: ${orderSnapshot.error}')),
                 );
+              }
               if (orderSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CustomLoader()));
               }
