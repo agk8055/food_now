@@ -2,14 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/custom_loader.dart';
-
-import 'dart:convert';
 import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
-import 'package:food_now/screens/buyer_orders_screen.dart'; // Add this import
+import 'package:food_now/screens/buyer_orders_screen.dart';
 import 'package:food_now/services/auth_service.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_now/widgets/seller_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -62,13 +58,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                color: const Color(0xFF00bf63).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.person_rounded,
                 size: 80,
-                color: Color(0xFF4CAF50),
+                color: Color(0xFF00bf63),
               ),
             ),
             const SizedBox(height: 32),
@@ -103,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
+                  backgroundColor: const Color(0xFF00bf63),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -145,146 +141,99 @@ class LoggedInUserProfile extends StatefulWidget {
 
 class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   final AuthService _authService = AuthService();
-  Map<String, dynamic>? _userData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? cachedData = prefs.getString(
-      'user_profile_${widget.user.uid}',
-    );
-
-    if (cachedData != null) {
-      if (mounted) {
-        setState(() {
-          _userData = jsonDecode(cachedData) as Map<String, dynamic>;
-          _isLoading = false;
-        });
-      }
-    } else {
-      await _fetchFromFirestore();
-    }
-  }
-
-  Future<void> _fetchFromFirestore() async {
-    if (_userData == null && mounted) setState(() => _isLoading = true);
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        data.remove('createdAt');
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-          'user_profile_${widget.user.uid}',
-          jsonEncode(data),
-        );
-
-        if (mounted) {
-          setState(() {
-            _userData = data;
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      print("Error fetching profile: $e");
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading && _userData == null) {
-      return const Scaffold(body: Center(child: CustomLoader()));
-    }
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Scaffold(body: Center(child: CustomLoader()));
+        }
 
-    String displayName = _userData?['name'] as String? ?? "";
-    if (displayName.isEmpty) {
-      displayName = widget.user.displayName ?? "User";
-    }
-    final String? profileImage = _userData?['profileImage'];
+        final userData = snapshot.data?.data() as Map<String, dynamic>?;
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(
-            context,
-            widget.user,
-            displayName,
-            profileImage,
-            _userData,
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  _buildMenuSection(
-                    title: "Account",
-                    items: [
-                      _buildMenuItem(
-                        icon: Icons.receipt_long_rounded,
-                        title: "Your Orders",
-                        subtitle: "View past orders & reorder",
-                        onTap: () {
-                          // Added Navigation logic here
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const BuyerOrdersScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildMenuItem(
-                        icon: Icons.favorite_rounded,
-                        title: "Favorites",
-                        subtitle: "Your favorite restaurants & items",
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildMenuSection(
-                    title: "Settings & Support",
-                    items: [
-                      _buildMenuItem(
-                        icon: Icons.notifications_active_rounded,
-                        title: "Notifications",
-                        onTap: () {},
-                      ),
-                      _buildMenuItem(
-                        icon: Icons.help_outline_rounded,
-                        title: "Help & Support",
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildLogoutButton(),
-                  const SizedBox(height: 40),
-                ],
+        String displayName = (userData?['name'] as String?) ?? "";
+        if (displayName.isEmpty) {
+          displayName = widget.user.displayName ?? "User";
+        }
+        final String? profileImage =
+            userData?['profileImage'] ?? widget.user.photoURL;
+
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          body: CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(
+                context,
+                widget.user,
+                displayName,
+                profileImage,
+                userData,
               ),
-            ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildMenuSection(
+                        title: "Account",
+                        items: [
+                          _buildMenuItem(
+                            icon: Icons.receipt_long_rounded,
+                            title: "Your Orders",
+                            subtitle: "View past orders & reorder",
+                            onTap: () {
+                              // Added Navigation logic here
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const BuyerOrdersScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.favorite_rounded,
+                            title: "Favorites",
+                            subtitle: "Your favorite restaurants & items",
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildMenuSection(
+                        title: "Settings & Support",
+                        items: [
+                          _buildMenuItem(
+                            icon: Icons.notifications_active_rounded,
+                            title: "Notifications",
+                            onTap: () {},
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.help_outline_rounded,
+                            title: "Help & Support",
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildLogoutButton(),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -297,20 +246,19 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   ) {
     return SliverAppBar(
       expandedHeight: 200,
-      backgroundColor: const Color(0xFF4CAF50),
+      backgroundColor: const Color(0xFF00bf63),
       pinned: true,
       actions: [
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: () async {
-            await Navigator.push(
+          onPressed: () {
+            Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     EditProfileScreen(user: user, userData: userData),
               ),
             );
-            _fetchFromFirestore();
           },
         ),
       ],
@@ -318,7 +266,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF43A047), Color(0xFF66BB6A)],
+              colors: [Color(0xFF43A047), Color(0xFF00bf63)],
               begin: Alignment.bottomLeft,
               end: Alignment.topRight,
             ),
@@ -333,20 +281,34 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                   color: Colors.white.withOpacity(0.3),
                   shape: BoxShape.circle,
                 ),
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.white,
-                  backgroundImage:
-                      (profileImage != null && profileImage.isNotEmpty)
-                      ? NetworkImage(profileImage)
-                      : null,
-                  child: (profileImage != null && profileImage.isNotEmpty)
-                      ? null
-                      : const Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Color(0xFF4CAF50),
-                        ),
+                child: SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: ClipOval(
+                    child: (profileImage != null && profileImage.isNotEmpty)
+                        ? Image.network(
+                            profileImage,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.white,
+                                child: const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Color(0xFF00bf63),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: Colors.white,
+                            child: const Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Color(0xFF00bf63),
+                            ),
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -425,10 +387,10 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                color: const Color(0xFF00bf63).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: const Color(0xFF4CAF50), size: 22),
+              child: Icon(icon, color: const Color(0xFF00bf63), size: 22),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -160,9 +160,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // Only show AppBar on Home Screen for now, or customize per screen
-      appBar: _selectedIndex < 3 ? const HomeAppBar() : null,
-      body: _screens[_selectedIndex],
+      body: _selectedIndex < 3
+          ? NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [HomeAppBar(showBanner: _selectedIndex == 0)];
+              },
+              body: _screens[_selectedIndex],
+            )
+          : _screens[_selectedIndex],
       bottomNavigationBar: CustomBottomNavigationBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
@@ -182,8 +187,7 @@ class HomeBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPromoBanner(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           _buildCategoryGrid(),
           const SizedBox(height: 24),
           if (FirebaseAuth.instance.currentUser == null) ...[
@@ -224,128 +228,12 @@ class HomeBody extends StatelessWidget {
     );
   }
 
-  Widget _buildPromoBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      width: double.infinity,
-      height: 220, // Increased height to prevent overflow
-      decoration: BoxDecoration(
-        color: const Color(0xFF66BB6A), // Lighter green gradient start
-        gradient: const LinearGradient(
-          colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 30),
-                const SizedBox(height: 12),
-                const Text(
-                  "SAVE FOOD\nSAVE MONEY",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF1B1B1B,
-                    ), // Dark button color
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min, // Shrink to fit text
-                    children: [
-                      Text("ORDER NOW"),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, size: 16),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Circular Image/Graphic on right
-          Positioned(
-            right: 20,
-            top: 30, // Adjust position
-            bottom: 30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2), // Circle background
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.fastfood,
-                    size: 40,
-                    color: Colors.orangeAccent,
-                  ), // Placeholder icon
-                ),
-              ),
-            ),
-          ),
-          // 50% OFF Tag
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD740), // Yellow
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                "50% OFF",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCategoryGrid() {
     final categories = [
       {
         "title": "FOOD",
         "subtitle": "FROM RESTAURANTS",
-        "offer": "UP TO 40% OFF & FREE DEL",
+        "offer": "UP TO 40% OFF",
         "offerColor": Colors.red,
         "image":
             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200", // Salad/Food
