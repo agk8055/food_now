@@ -39,15 +39,10 @@ class AuthService {
     String email,
     String password,
   ) async {
-    try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } catch (e) {
-      print("Error signing in with Email/Password: $e");
-      return null; // You might want to rethrow or return custom error
-    }
+    return await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
   // Sign up with Email and Password
@@ -55,15 +50,10 @@ class AuthService {
     String email,
     String password,
   ) async {
-    try {
-      return await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } catch (e) {
-      print("Error signing up with Email/Password: $e");
-      return null;
-    }
+    return await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
   // Sign out

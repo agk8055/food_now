@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/custom_loader.dart';
 import 'package:food_now/screens/home_screen.dart';
@@ -199,6 +200,25 @@ class _LoginScreenState extends State<LoginScreen> {
         userCredential,
         isNewUser: !_isLogin,
       ); // Pass isNewUser boolean
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        String message = 'An error occurred';
+        if (!_isLogin && e.code == 'email-already-in-use') {
+          message = 'account already exists';
+        } else if (_isLogin) {
+          if (e.code == 'wrong-password') {
+            message = 'password incorrect';
+          } else if (e.code == 'user-not-found' ||
+              e.code == 'invalid-credential') {
+            message = 'account not exists';
+          }
+        } else if (e.message != null) {
+          message = e.message!;
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

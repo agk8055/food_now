@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../screens/shop_menu_screen.dart';
 
-class ShopCard extends StatelessWidget {
+class ShopCard extends StatefulWidget {
   final String shopId;
   final Map<String, dynamic> data;
   final bool isCompact;
@@ -18,8 +20,57 @@ class ShopCard extends StatelessWidget {
   });
 
   @override
+  State<ShopCard> createState() => _ShopCardState();
+}
+
+class _ShopCardState extends State<ShopCard> {
+  bool _isFavorite = false;
+  bool _isTogglingFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoriteStatus();
+  }
+
+  Future<void> _loadFavoriteStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      if (doc.exists && mounted) {
+        final favorites = List<String>.from(doc.data()?['favoriteShops'] ?? []);
+        setState(() => _isFavorite = favorites.contains(widget.shopId));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFavorite() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _isTogglingFavorite) return;
+    setState(() => _isTogglingFavorite = true);
+    try {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      if (_isFavorite) {
+        await userRef.update({
+          'favoriteShops': FieldValue.arrayRemove([widget.shopId]),
+        });
+      } else {
+        await userRef.update({
+          'favoriteShops': FieldValue.arrayUnion([widget.shopId]),
+        });
+      }
+      if (mounted) setState(() => _isFavorite = !_isFavorite);
+    } catch (_) {}
+    if (mounted) setState(() => _isTogglingFavorite = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isCompact) {
+    if (widget.isCompact) {
       return _buildCompactCard(context);
     } else {
       return _buildNormalCard(context);
@@ -27,8 +78,8 @@ class ShopCard extends StatelessWidget {
   }
 
   Widget _buildNormalCard(BuildContext context) {
-    final images = data['images'] as List<dynamic>?;
-    final bool isOpen = data['isOpen'] ?? true;
+    final images = widget.data['images'] as List<dynamic>?;
+    final bool isOpen = widget.data['isOpen'] ?? true;
 
     return GestureDetector(
       onTap: isOpen
@@ -37,8 +88,9 @@ class ShopCard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ShopMenuScreen(
-                    shopId: shopId,
-                    shopName: data['shopName'],
+                    shopId: widget.shopId,
+                    shopName: widget.data['shopName'],
+                    shopData: widget.data,
                   ),
                 ),
               );
@@ -109,7 +161,7 @@ class ShopCard extends StatelessWidget {
                               height: 180,
                               color: Colors.grey[200],
                               child: Icon(
-                                defaultIcon,
+                                widget.defaultIcon,
                                 size: 50,
                                 color: Colors.grey,
                               ),
@@ -141,6 +193,39 @@ class ShopCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    // Favorite Heart Icon
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: _isTogglingFavorite ? null : _toggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Icon(
+                              _isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              key: ValueKey(_isFavorite),
+                              color: _isFavorite ? Colors.red : Colors.grey,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 Padding(
@@ -152,7 +237,7 @@ class ShopCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            data['shopName'] ?? "Unknown",
+                            widget.data['shopName'] ?? "Unknown",
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -169,7 +254,7 @@ class ShopCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(5),
                               ),
                               child: Text(
-                                "★ ${data['rating'] ?? '4.0'}",
+                                "★ ${widget.data['rating'] ?? '4.0'}",
                                 style: const TextStyle(
                                   color: Colors.green,
                                   fontWeight: FontWeight.bold,
@@ -180,7 +265,7 @@ class ShopCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        data['category'] ?? defaultCategory,
+                        widget.data['category'] ?? widget.defaultCategory,
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 8),
@@ -194,7 +279,7 @@ class ShopCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              data['location']?['address'] ??
+                              widget.data['location']?['address'] ??
                                   "Address not available",
                               style: const TextStyle(
                                 fontSize: 12,
@@ -217,8 +302,8 @@ class ShopCard extends StatelessWidget {
   }
 
   Widget _buildCompactCard(BuildContext context) {
-    final images = data['images'] as List<dynamic>?;
-    final bool isOpen = data['isOpen'] ?? true;
+    final images = widget.data['images'] as List<dynamic>?;
+    final bool isOpen = widget.data['isOpen'] ?? true;
 
     return GestureDetector(
       onTap: isOpen
@@ -227,8 +312,9 @@ class ShopCard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ShopMenuScreen(
-                    shopId: shopId,
-                    shopName: data['shopName'],
+                    shopId: widget.shopId,
+                    shopName: widget.data['shopName'],
+                    shopData: widget.data,
                   ),
                 ),
               );
@@ -301,7 +387,7 @@ class ShopCard extends StatelessWidget {
                               width: 80,
                               color: Colors.grey[200],
                               child: Icon(
-                                defaultIcon,
+                                widget.defaultIcon,
                                 size: 30,
                                 color: Colors.grey,
                               ),
@@ -326,6 +412,32 @@ class ShopCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    // Favorite Heart Icon for Compact
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: _isTogglingFavorite ? null : _toggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Icon(
+                              _isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              key: ValueKey(_isFavorite),
+                              color: _isFavorite ? Colors.red : Colors.grey,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 16),
@@ -342,7 +454,7 @@ class ShopCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              data['shopName'] ?? "Unknown",
+                              widget.data['shopName'] ?? "Unknown",
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -364,7 +476,7 @@ class ShopCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                "★ ${data['rating'] ?? '4.0'}",
+                                "★ ${widget.data['rating'] ?? '4.0'}",
                                 style: const TextStyle(
                                   color: Colors.green,
                                   fontWeight: FontWeight.bold,
@@ -376,7 +488,7 @@ class ShopCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        data['category'] ?? defaultCategory,
+                        widget.data['category'] ?? widget.defaultCategory,
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -392,7 +504,7 @@ class ShopCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              data['location']?['address'] ??
+                              widget.data['location']?['address'] ??
                                   "Address not available",
                               style: const TextStyle(
                                 fontSize: 12,
