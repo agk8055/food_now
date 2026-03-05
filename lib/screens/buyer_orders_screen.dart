@@ -72,8 +72,9 @@ class BuyerOrdersScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    return _buildOrderCard(context, data);
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _buildOrderCard(context, data, doc.id);
                   },
                 );
               },
@@ -81,7 +82,11 @@ class BuyerOrdersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildOrderCard(
+    BuildContext context,
+    Map<String, dynamic> data,
+    String orderId,
+  ) {
     final String shopName = data['shopName'] ?? 'Unknown Shop';
     final String status = data['status'] ?? 'pending';
     final String otp = data['otp'] ?? '----';
@@ -279,6 +284,95 @@ class BuyerOrdersScreen extends StatelessWidget {
               ],
             ),
           ),
+
+          // 4. Rating & Review (if completed)
+          if (status == 'completed') ...[
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('reviews')
+                  .where('orderId', isEqualTo: orderId)
+                  .limit(1)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF00bf63),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const SizedBox(); // No review yet
+                }
+
+                final reviewData =
+                    snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                final int rating = reviewData['rating'] ?? 0;
+                final String comment = reviewData['comment'] ?? '';
+
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            "Your Rating: ",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Row(
+                            children: List.generate(5, (index) {
+                              return Icon(
+                                index < rating ? Icons.star : Icons.star_border,
+                                color: index < rating
+                                    ? Colors.amber
+                                    : Colors.grey[300],
+                                size: 18,
+                              );
+                            }),
+                          ),
+                        ],
+                      ),
+                      if (comment.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Text(
+                            '"$comment"',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

@@ -121,6 +121,296 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     });
   }
 
+  Widget _buildReviewsSection() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('reviews')
+          .where('shopId', isEqualTo: widget.shopId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(
+              child: CircularProgressIndicator(color: Color(0xFF00bf63)),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                color: Colors.grey[50],
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                child: const Text(
+                  'RATINGS & REVIEWS',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: Text(
+                    "No reviews yet.",
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        final docs = snapshot.data!.docs.toList();
+        docs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+          final tA = dataA['createdAt'] as Timestamp?;
+          final tB = dataB['createdAt'] as Timestamp?;
+          if (tA == null && tB == null) return 0;
+          if (tA == null) return 1;
+          if (tB == null) return -1;
+          return tB.compareTo(tA);
+        });
+
+        int totalReviews = docs.length;
+        double averageRating = 0.0;
+        List<int> distribution = [0, 0, 0, 0, 0]; // 1 to 5 stars
+
+        for (var doc in docs) {
+          final review = doc.data() as Map<String, dynamic>;
+          final num ratingNum = review['rating'] ?? 0;
+          final int rating = ratingNum.toInt();
+
+          averageRating += rating;
+          if (rating >= 1 && rating <= 5) {
+            distribution[rating - 1]++;
+          }
+        }
+
+        if (totalReviews > 0) {
+          averageRating /= totalReviews;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              color: Colors.grey[50],
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: const Text(
+                'RATINGS & REVIEWS',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black54,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+
+            // Rating Distribution Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left side: Average Rating
+                  Column(
+                    children: [
+                      Text(
+                        averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(5, (index) {
+                          return Icon(
+                            index < averageRating.round()
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: const Color(0xFF00bf63),
+                            size: 14,
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "$totalReviews review${totalReviews == 1 ? '' : 's'}",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 32),
+                  // Right side: Distribution Bars
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List.generate(5, (index) {
+                        int starLevel = 5 - index; // 5 -> 1
+                        int count = distribution[starLevel - 1];
+                        double percent = totalReviews > 0
+                            ? count / totalReviews
+                            : 0.0;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                starLevel.toString(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: percent,
+                                    backgroundColor: Colors.grey[200],
+                                    minHeight: 6,
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF00bf63),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Colors.black12),
+
+            ListView.separated(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: docs.length,
+              separatorBuilder: (context, index) =>
+                  const Divider(height: 1, color: Colors.black12),
+              itemBuilder: (context, index) {
+                final review = docs[index].data() as Map<String, dynamic>;
+                final num ratingNum = review['rating'] ?? 0;
+                final int rating = ratingNum.toInt();
+                final String comment = review['comment'] ?? "";
+                final Timestamp? createdAt = review['createdAt'] as Timestamp?;
+
+                String dateStr = "";
+                if (createdAt != null) {
+                  final date = createdAt.toDate();
+                  dateStr = "${date.day}/${date.month}/${date.year}";
+                }
+
+                return Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: rating >= 4
+                                      ? const Color(0xFF00bf63)
+                                      : (rating >= 3
+                                            ? Colors.amber
+                                            : Colors.red),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      rating.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.white,
+                                      size: 12,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Verified Buyer",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (dateStr.isNotEmpty)
+                            Text(
+                              dateStr,
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (comment.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          comment,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   int _getTotalItems() {
     return _cart.values.fold(
       0,
@@ -140,9 +430,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
   Widget _buildRestaurantHeader(BuildContext context) {
     final data = _resolvedShopData;
     final images = data['images'] as List<dynamic>?;
-    final String? bannerUrl = (images != null && images.isNotEmpty)
-        ? images.first as String
-        : null;
 
     final String category = data['category'] ?? 'Restaurant';
     final String address =
@@ -154,25 +441,25 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
       children: [
         Stack(
           children: [
-            // Image
-            bannerUrl != null
-                ? Image.network(
-                    bannerUrl,
-                    height: 320,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 320,
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.restaurant,
-                      size: 60,
-                      color: Colors.grey,
-                    ),
-                  ),
+            // Image Slideshow
+            if (images != null && images.isNotEmpty)
+              SizedBox(
+                height: 320,
+                width: double.infinity,
+                child: _ShopImageSlideshow(images: images.cast<String>()),
+              )
+            else
+              Container(
+                height: 320,
+                color: Colors.grey[200],
+                child: const Icon(
+                  Icons.restaurant,
+                  size: 60,
+                  color: Colors.grey,
+                ),
+              ),
 
-            // Light green gradient + dark bottom gradient
+            // Black gradient + dark bottom gradient
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -180,9 +467,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(
-                        0xFF00bf63,
-                      ).withOpacity(0.4), // Light green top
+                      Colors.black.withOpacity(0.6), // Black top
                       Colors.transparent,
                       Colors.black.withOpacity(
                         0.85,
@@ -440,7 +725,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
 
                       // Food items list
                       SliverPadding(
-                        padding: const EdgeInsets.only(bottom: 80),
+                        padding: const EdgeInsets.only(bottom: 0),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate((
                             context,
@@ -630,6 +915,12 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                           }, childCount: docs.length),
                         ),
                       ),
+
+                      // Reviews Section
+                      SliverToBoxAdapter(child: _buildReviewsSection()),
+
+                      // Bottom padding for cart
+                      const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
                     ],
                   ),
                 );
@@ -709,6 +1000,117 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShopImageSlideshow extends StatefulWidget {
+  final List<String> images;
+
+  const _ShopImageSlideshow({required this.images});
+
+  @override
+  State<_ShopImageSlideshow> createState() => _ShopImageSlideshowState();
+}
+
+class _ShopImageSlideshowState extends State<_ShopImageSlideshow> {
+  late PageController _pageController;
+  int _currentPage = 0;
+  bool _isAutoScrolling = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    if (widget.images.length <= 1) return;
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted || !_isAutoScrolling) return;
+
+      int nextPage = _currentPage + 1;
+      if (nextPage >= widget.images.length) {
+        nextPage = 0;
+        _pageController.jumpToPage(0);
+      } else {
+        _pageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+      _startAutoScroll();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _isAutoScrolling = false;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.images.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.restaurant, size: 60, color: Colors.grey),
+      );
+    }
+
+    if (widget.images.length == 1) {
+      return Image.network(widget.images.first, fit: BoxFit.cover);
+    }
+
+    return Listener(
+      onPointerDown: (_) => _isAutoScrolling = false,
+      onPointerUp: (_) {
+        _isAutoScrolling = true;
+        _startAutoScroll();
+      },
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() => _currentPage = index);
+            },
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              return Image.network(widget.images[index], fit: BoxFit.cover);
+            },
+          ),
+
+          // Dots indicator
+          if (widget.images.length > 1)
+            Positioned(
+              bottom: 40,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.images.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentPage == index ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index
+                          ? const Color(0xFF00bf63)
+                          : Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 ),
               ),
             ),

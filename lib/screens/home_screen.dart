@@ -12,6 +12,8 @@ import 'package:food_now/widgets/bottom_navigation_bar.dart';
 import 'package:food_now/screens/food_screen.dart';
 import 'package:food_now/screens/supermart_screen.dart';
 import 'package:food_now/widgets/app_bar.dart';
+import 'package:food_now/widgets/review_bottom_sheet.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,11 +25,68 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isCheckingServiceability = true;
+  StreamSubscription<QuerySnapshot>? _ordersSubscription;
+  final Set<String> _processingOrders =
+      {}; // Prevent multiple popups for the same order
 
   @override
   void initState() {
     super.initState();
     _checkServiceability();
+    _listenForCompletedOrders();
+  }
+
+  void _listenForCompletedOrders() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _ordersSubscription = FirebaseFirestore.instance
+        .collection('orders')
+        .where('buyerId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'completed')
+        .snapshots()
+        .listen((snapshot) {
+          for (var change in snapshot.docChanges) {
+            // Only trigger on newly added or modified docs that fit the query
+            if (change.type == DocumentChangeType.added ||
+                change.type == DocumentChangeType.modified) {
+              final data = change.doc.data();
+              if (data != null) {
+                final orderId = change.doc.id;
+                final shopId = data['shopId'] ?? '';
+                final shopName = data['shopName'] ?? 'Unknown Shop';
+                final buyerId = data['buyerId'] ?? '';
+                final bool isReviewed = data['reviewed'] == true;
+
+                if (buyerId == user.uid && shopId.isNotEmpty && !isReviewed) {
+                  // Only process if not already processing
+                  if (!_processingOrders.contains(orderId)) {
+                    _processingOrders.add(orderId);
+
+                    // Wait 3 seconds before showing the modal
+                    Future.delayed(const Duration(seconds: 3), () {
+                      if (mounted) {
+                        ReviewBottomSheet.show(
+                          context,
+                          orderId: orderId,
+                          shopId: shopId,
+                          shopName: shopName,
+                          buyerId: buyerId,
+                        );
+                      }
+                    });
+                  }
+                }
+              }
+            }
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _ordersSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkServiceability() async {
