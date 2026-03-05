@@ -43,12 +43,13 @@ dependencies:
   shared_preferences: ^2.5.4
   firebase_messaging: ^16.1.1
   intl: ^0.20.2
-  http: ^1.2.0
+  http: ^1.6.0
   dart_geohash: ^2.1.0
   lottie: ^3.3.2
   google_fonts: ^8.0.2
   flutter_native_splash: ^2.4.7
   video_player: ^2.10.1
+  razorpay_flutter: ^1.4.1
 
 dev_dependencies:
   flutter_test:

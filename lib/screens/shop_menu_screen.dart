@@ -137,7 +137,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
   }
 
   // ── Restaurant header ────────────────────────────────────────────────────────
-  Widget _buildRestaurantHeader() {
+  Widget _buildRestaurantHeader(BuildContext context) {
     final data = _resolvedShopData;
     final images = data['images'] as List<dynamic>?;
     final String? bannerUrl = (images != null && images.isNotEmpty)
@@ -152,18 +152,18 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Banner image ──────────────────────────────────────────────────────
         Stack(
           children: [
+            // Image
             bannerUrl != null
                 ? Image.network(
                     bannerUrl,
-                    height: 210,
+                    height: 320,
                     width: double.infinity,
                     fit: BoxFit.cover,
                   )
                 : Container(
-                    height: 210,
+                    height: 320,
                     color: Colors.grey[200],
                     child: const Icon(
                       Icons.restaurant,
@@ -171,7 +171,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                       color: Colors.grey,
                     ),
                   ),
-            // Dark gradient at bottom of banner for legibility
+
+            // Light green gradient + dark bottom gradient
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -179,139 +180,196 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
+                      const Color(
+                        0xFF00bf63,
+                      ).withOpacity(0.4), // Light green top
                       Colors.transparent,
-                      Colors.black.withOpacity(0.45),
+                      Colors.black.withOpacity(
+                        0.85,
+                      ), // Dark bottom for white text
                     ],
-                    stops: const [0.5, 1.0],
+                    stops: const [0.0, 0.4, 1.0],
                   ),
                 ),
               ),
             ),
-            // Favorite Button on Image
+
+            // Top Buttons: Back & Favorite
             Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  tooltip: _isFavorite
-                      ? 'Remove from favourites'
-                      : 'Add to favourites',
-                  onPressed: _isTogglingFavorite ? null : _toggleFavorite,
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, anim) =>
-                        ScaleTransition(scale: anim, child: child),
-                    child: Icon(
-                      _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      key: ValueKey(_isFavorite),
-                      color: _isFavorite ? Colors.redAccent : Colors.grey,
-                      size: 26,
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 16,
+              right: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back Button
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 4),
+                        ],
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Colors.black),
                     ),
                   ),
-                ),
+                  // Favorite Button
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black26, blurRadius: 4),
+                      ],
+                    ),
+                    child: IconButton(
+                      tooltip: _isFavorite
+                          ? 'Remove from favourites'
+                          : 'Add to favourites',
+                      onPressed: _isTogglingFavorite ? null : _toggleFavorite,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, anim) =>
+                            ScaleTransition(scale: anim, child: child),
+                        child: Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          key: ValueKey(_isFavorite),
+                          color: _isFavorite ? Colors.redAccent : Colors.grey,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Shop Details overlaid on bottom left
+            Positioned(
+              bottom: 20,
+              left: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.shopName,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            height: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black45,
+                                offset: Offset(0, 1),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Rating badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00bf63),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              rating,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Category
+                  Row(
+                    children: [
+                      // Category chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Text(
+                          category,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
 
-        // ── Info panel ────────────────────────────────────────────────────────
+        // ── Address below the image ──────────────────────────────────────────
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
           color: Colors.white,
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Name + rating
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.shopName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          rating,
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-
-              // Category chip
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00bf63).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              const Icon(Icons.location_on, size: 18, color: Color(0xFF00bf63)),
+              const SizedBox(width: 6),
+              Expanded(
                 child: Text(
-                  category,
+                  address,
                   style: const TextStyle(
-                    color: Color(0xFF00bf63),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    fontSize: 14,
+                    height: 1.4,
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-
-              // Address
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.location_on,
-                    size: 16,
-                    color: Color(0xFF00bf63),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      address,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -320,15 +378,15 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         // ── Section label ─────────────────────────────────────────────────────
         Container(
           width: double.infinity,
-          color: Colors.grey[50],
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
           child: const Text(
             'MENU',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
               color: Colors.black54,
-              letterSpacing: 1.5,
+              letterSpacing: 1.2,
             ),
           ),
         ),
@@ -340,11 +398,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0.5,
-      ),
       body: Column(
         children: [
           Expanded(
@@ -355,207 +408,230 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                   return const Center(child: CustomLoader());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(child: _buildRestaurantHeader()),
-                      const SliverFillRemaining(
-                        child: Center(
-                          child: Text("No items available right now."),
+                  return MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: _buildRestaurantHeader(context),
                         ),
-                      ),
-                    ],
+                        const SliverFillRemaining(
+                          child: Center(
+                            child: Text("No items available right now."),
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }
 
                 final docs = snapshot.data!.docs;
 
-                return CustomScrollView(
-                  slivers: [
-                    // Restaurant header as a sticky/scrollable top block
-                    SliverToBoxAdapter(child: _buildRestaurantHeader()),
-
-                    // Food items list
-                    SliverPadding(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final doc = docs[index];
-                          final item = doc.data() as Map<String, dynamic>;
-                          final int currentQty =
-                              _cart[doc.id]?['cartQuantity'] ?? 0;
-
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border(
-                                bottom: BorderSide(color: Colors.grey.shade100),
-                              ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Item details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['name'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "₹${item['discountedPrice']}",
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        "Expires: ${item['expiryDate']} at ${item['expiryTime']}",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                // Item image + ADD button
-                                SizedBox(
-                                  width: 110,
-                                  height: 120,
-                                  child: Stack(
-                                    alignment: Alignment.topCenter,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child:
-                                            (item['imageUrl'] != null &&
-                                                item['imageUrl'] != "")
-                                            ? Image.network(
-                                                item['imageUrl'],
-                                                width: 110,
-                                                height: 105,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Container(
-                                                width: 110,
-                                                height: 105,
-                                                color: Colors.grey[100],
-                                                child: const Icon(
-                                                  Icons.fastfood,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                      ),
-                                      Positioned(
-                                        bottom: 0,
-                                        child: Container(
-                                          height: 36,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.grey.shade300,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(
-                                                  0.05,
-                                                ),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: currentQty == 0
-                                              ? InkWell(
-                                                  onTap: () =>
-                                                      _updateCart(doc, 1),
-                                                  child: Container(
-                                                    width: 90,
-                                                    alignment: Alignment.center,
-                                                    child: const Text(
-                                                      "ADD",
-                                                      style: TextStyle(
-                                                        color: Color(
-                                                          0xFF00bf63,
-                                                        ),
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 15,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                )
-                                              : Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                        Icons.remove,
-                                                        color: Colors.black54,
-                                                        size: 18,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _updateCart(doc, -1),
-                                                      constraints:
-                                                          const BoxConstraints(
-                                                            minWidth: 32,
-                                                            minHeight: 32,
-                                                          ),
-                                                      padding: EdgeInsets.zero,
-                                                    ),
-                                                    Text(
-                                                      "$currentQty",
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                        Icons.add,
-                                                        color: Color(
-                                                          0xFF00bf63,
-                                                        ),
-                                                        size: 18,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _updateCart(doc, 1),
-                                                      constraints:
-                                                          const BoxConstraints(
-                                                            minWidth: 32,
-                                                            minHeight: 32,
-                                                          ),
-                                                      padding: EdgeInsets.zero,
-                                                    ),
-                                                  ],
-                                                ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }, childCount: docs.length),
+                return MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: CustomScrollView(
+                    slivers: [
+                      // Restaurant header as a sticky/scrollable top block
+                      SliverToBoxAdapter(
+                        child: _buildRestaurantHeader(context),
                       ),
-                    ),
-                  ],
+
+                      // Food items list
+                      SliverPadding(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final doc = docs[index];
+                            final item = doc.data() as Map<String, dynamic>;
+                            final int currentQty =
+                                _cart[doc.id]?['cartQuantity'] ?? 0;
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade100,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Item details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['name'],
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "₹${item['discountedPrice']}",
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Expires: ${item['expiryDate']} at ${item['expiryTime']}",
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Item image + ADD button
+                                  SizedBox(
+                                    width: 110,
+                                    height: 120,
+                                    child: Stack(
+                                      alignment: Alignment.topCenter,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          child:
+                                              (item['imageUrl'] != null &&
+                                                  item['imageUrl'] != "")
+                                              ? Image.network(
+                                                  item['imageUrl'],
+                                                  width: 110,
+                                                  height: 105,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Container(
+                                                  width: 110,
+                                                  height: 105,
+                                                  color: Colors.grey[100],
+                                                  child: const Icon(
+                                                    Icons.fastfood,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          child: Container(
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.05),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: currentQty == 0
+                                                ? InkWell(
+                                                    onTap: () =>
+                                                        _updateCart(doc, 1),
+                                                    child: Container(
+                                                      width: 90,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const Text(
+                                                        "ADD",
+                                                        style: TextStyle(
+                                                          color: Color(
+                                                            0xFF00bf63,
+                                                          ),
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 15,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons.remove,
+                                                          color: Colors.black54,
+                                                          size: 18,
+                                                        ),
+                                                        onPressed: () =>
+                                                            _updateCart(
+                                                              doc,
+                                                              -1,
+                                                            ),
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                              minWidth: 32,
+                                                              minHeight: 32,
+                                                            ),
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                      ),
+                                                      Text(
+                                                        "$currentQty",
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons.add,
+                                                          color: Color(
+                                                            0xFF00bf63,
+                                                          ),
+                                                          size: 18,
+                                                        ),
+                                                        onPressed: () =>
+                                                            _updateCart(doc, 1),
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                              minWidth: 32,
+                                                              minHeight: 32,
+                                                            ),
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                      ),
+                                                    ],
+                                                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }, childCount: docs.length),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

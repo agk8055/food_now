@@ -5,6 +5,7 @@ import '../widgets/custom_loader.dart';
 import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
 import 'package:food_now/screens/buyer_orders_screen.dart';
+import 'package:food_now/screens/favorites_screen.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/widgets/seller_banner.dart';
 
@@ -203,7 +204,14 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                             icon: Icons.favorite_rounded,
                             title: "Favorites",
                             subtitle: "Your favorite restaurants & items",
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const FavoritesScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
