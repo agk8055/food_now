@@ -30,6 +30,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // TODO: Replace with your actual backend URL (e.g., https://your-food-app.onrender.com)
   final String backendUrl = "https://backend-food-now.onrender.com"; 
 
+  final Color primaryGreen = const Color(0xFF00bf63);
+
   @override
   void initState() {
     super.initState();
@@ -155,7 +157,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)), 
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
     }
   }
@@ -164,170 +171,262 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text("Order Reserved!", textAlign: TextAlign.center),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle,
-              color: Color(0xFF00bf63),
-              size: 80,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Show this OTP at the restaurant counter to pickup your food:",
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  color: primaryGreen,
+                  size: 64,
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Text(
-                pickupCode,
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 8,
+              const SizedBox(height: 24),
+              const Text(
+                "Order Reserved!",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
                   color: Colors.black87,
                 ),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).popUntil(
-                (route) => route.isFirst,
-              ), // Returns to Home Screen
-              style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF00bf63),
-              ),
-              child: const Text(
-                "GO TO HOME",
+              const SizedBox(height: 12),
+              Text(
+                "Show this OTP at the restaurant counter to pick up your food.",
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200, width: 2),
+                ),
+                child: Text(
+                  pickupCode,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 12,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    "Back to Home",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper widget to build consistent premium cards
+  Widget _buildCard({required Widget child, EdgeInsetsGeometry? padding}) {
+    return Container(
+      width: double.infinity,
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      child: child,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF9FAFB), // Soft premium background
       appBar: AppBar(
         title: const Text(
           "Checkout",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // ── Pickup Details Card ──────────────────────────────────────
+                  _buildCard(
+                    child: Row(
                       children: [
-                        const Text(
-                          "PICKUP FROM",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          child: Icon(Icons.storefront_rounded, color: primaryGreen, size: 28),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.shopName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "PICKING UP FROM",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                widget.shopName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  // ── Bill Summary Card ────────────────────────────────────────
+                  _buildCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           "Bill Summary",
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
 
                         ...widget.cartItems.map((item) {
-                          double itemTotal =
-                              item['price'] * item['cartQuantity'];
+                          double itemTotal = item['price'] * item['cartQuantity'];
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.only(bottom: 16.0),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(
-                                  Icons.stop_circle_outlined,
-                                  color: Colors.green,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
+                                // Quantity Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade200),
+                                  ),
                                   child: Text(
-                                    "${item['name']}  x${item['cartQuantity']}",
-                                    style: const TextStyle(fontSize: 14),
+                                    "${item['cartQuantity']}x",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.grey[700],
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  "₹$itemTotal",
-                                  style: const TextStyle(fontSize: 14),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Text(
+                                      item['name'],
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    "₹$itemTotal",
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           );
                         }),
 
-                        const Divider(height: 32),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Divider(color: Colors.black12, height: 1),
+                        ),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -336,14 +435,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               "To Pay",
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black87,
                               ),
                             ),
                             Text(
                               "₹${widget.totalAmount}",
                               style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.black87,
                               ),
                             ),
                           ],
@@ -353,74 +454,99 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
 
                   const SizedBox(height: 24),
-
-                  const Text(
-                    "PAYMENT METHOD",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
+                  
+                  // ── Payment Method Header ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0, bottom: 12.0),
+                    child: Text(
+                      "PAYMENT METHOD",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  
+                  // ── Payment Method Card ──────────────────────────────────────
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: primaryGreen.withOpacity(0.3), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryGreen.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: ListTile(
-                      leading: const Icon(
-                        Icons.security,
-                        color: Color(0xFF00bf63),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: primaryGreen.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.security_rounded, color: primaryGreen, size: 24),
                       ),
-                      title: const Text("Pay securely via Razorpay"),
-                      trailing: const Icon(
-                        Icons.check_circle,
-                        color: Color(0xFF00bf63),
+                      title: const Text(
+                        "Razorpay Secure",
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                       ),
+                      subtitle: Text(
+                        "UPI, Cards, Wallets",
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                      trailing: Icon(Icons.check_circle_rounded, color: primaryGreen, size: 28),
                     ),
                   ),
+                  const SizedBox(height: 40), // Extra scroll padding
                 ],
               ),
             ),
           ),
 
+          // ── Bottom Checkout Bar ──────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).padding.bottom + 20),
             decoration: BoxDecoration(
               color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, -10),
                 ),
               ],
             ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _startPaymentProcess,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00bf63),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isProcessing ? null : _startPaymentProcess,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: _isProcessing
-                      ? const CustomLoader(width: 30, height: 30)
-                      : Text(
-                          "PAY ₹${widget.totalAmount} & RESERVE",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
                 ),
+                child: _isProcessing
+                    ? const CustomLoader(width: 28, height: 28)
+                    : Text(
+                        "Pay ₹${widget.totalAmount} & Reserve",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
               ),
             ),
           ),

@@ -13,367 +13,719 @@ class BuyerOrdersScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          "Your Orders",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: user == null
-          ? const Center(child: Text("Please log in to view orders."))
-          : StreamBuilder<QuerySnapshot>(
-              // Query orders matching the current buyer, sorted by newest first
-              stream: FirebaseFirestore.instance
-                  .collection('orders')
-                  .where('buyerId', isEqualTo: user.uid)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CustomLoader());
-                }
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            automaticallyImplyLeading: false,
+            expandedHeight: 100,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            shadowColor: Colors.black.withOpacity(0.08),
+            iconTheme: const IconThemeData(color: Colors.black),
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(
+                left: 20,
+                bottom: 16,
+                right: 20,
+              ),
+              title: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: 1.0,
+                child: const Text(
+                  "Your Orders",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        body: user == null
+            ? _buildLoggedOutState()
+            : StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('orders')
+                    .where('buyerId', isEqualTo: user.uid)
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return _buildErrorState(snapshot.error.toString());
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CustomLoader());
+                  }
 
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.receipt_long_outlined,
-                          size: 80,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          "No orders yet",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "When you reserve surplus food, it will appear here.",
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: ListView.builder(
+                      key: ValueKey(docs.length),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final data = doc.data() as Map<String, dynamic>;
+                        return _AnimatedOrderCard(
+                          data: data,
+                          orderId: doc.id,
+                          index: index,
+                        );
+                      },
                     ),
                   );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    return _buildOrderCard(context, data, doc.id);
-                  },
-                );
-              },
-            ),
+                },
+              ),
+      ),
     );
   }
 
-  Widget _buildOrderCard(
-    BuildContext context,
-    Map<String, dynamic> data,
-    String orderId,
-  ) {
+  Widget _buildLoggedOutState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.lock_outline_rounded,
+              size: 36,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "You're not logged in",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Please log in to view your orders.",
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Something went wrong',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 46,
+                color: Colors.grey[300],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "No orders yet",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "When you reserve surplus food,\nit will appear here.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- Animated wrapper for staggered entry ---
+class _AnimatedOrderCard extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final String orderId;
+  final int index;
+
+  const _AnimatedOrderCard({
+    required this.data,
+    required this.orderId,
+    required this.index,
+  });
+
+  @override
+  State<_AnimatedOrderCard> createState() => _AnimatedOrderCardState();
+}
+
+class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    // Stagger animation based on index
+    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: _OrderCard(data: widget.data, orderId: widget.orderId),
+      ),
+    );
+  }
+}
+
+// --- Core Order Card ---
+class _OrderCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String orderId;
+
+  const _OrderCard({required this.data, required this.orderId});
+
+  @override
+  Widget build(BuildContext context) {
     final String shopName = data['shopName'] ?? 'Unknown Shop';
     final String status = data['status'] ?? 'pending';
     final String otp = data['otp'] ?? '----';
     final double totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
     final List<dynamic> items = data['items'] ?? [];
 
-    // Format the date
     String formattedDate = "Just now";
     if (data['createdAt'] != null) {
       final DateTime date = (data['createdAt'] as Timestamp).toDate();
       formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(date);
     }
 
-    // Determine Status Colors
     Color statusColor;
     String statusText;
+    IconData statusIcon;
     if (status == 'completed') {
       statusColor = const Color(0xFF00bf63);
       statusText = "COMPLETED";
+      statusIcon = Icons.check_circle_rounded;
     } else if (status == 'cancelled') {
       statusColor = Colors.redAccent;
       statusText = "CANCELLED";
+      statusIcon = Icons.cancel_rounded;
     } else {
       statusColor = Colors.orange;
       statusText = "PENDING PICKUP";
+      statusIcon = Icons.access_time_rounded;
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Header: Shop Name & Status
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        shopName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        formattedDate,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Colored accent top bar ---
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              height: 4,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [statusColor, statusColor.withOpacity(0.5)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
 
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-          // 2. Items List
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: items.map((item) {
-                final String itemName = item['name'] ?? 'Item';
-                final int qty = item['cartQuantity'] ?? 1;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6.0),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.stop_circle_outlined,
-                        size: 12,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "$qty x ",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          itemName,
-                          style: TextStyle(
-                            color: Colors.grey[800],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-          // 3. Footer: Total & OTP (if pending)
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Total Paid",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "₹$totalAmount",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                if (status == 'pending')
+            // --- Header ---
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Shop icon avatar
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00bf63),
+                      color: const Color(0xFF00bf63).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: Color(0xFF00bf63),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "PICKUP OTP",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                        Text(
+                          shopName,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: Colors.black87,
                           ),
                         ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 12,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withOpacity(0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 11, color: statusColor),
+                        const SizedBox(width: 4),
                         Text(
-                          otp,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
+                          statusText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
                           ),
                         ),
                       ],
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // 4. Rating & Review (if completed)
-          if (status == 'completed') ...[
-            const Divider(height: 1, color: Color(0xFFEEEEEE)),
-            FutureBuilder<QuerySnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('reviews')
-                  .where('orderId', isEqualTo: orderId)
-                  .limit(1)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(
-                      child: SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFF00bf63),
-                        ),
-                      ),
+            // --- Divider ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Divider(height: 1, color: Colors.grey[100], thickness: 1),
+            ),
+
+            // --- Items ---
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "ORDER ITEMS",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: Colors.grey[400],
                     ),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const SizedBox(); // No review yet
-                }
-
-                final reviewData =
-                    snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                final int rating = reviewData['rating'] ?? 0;
-                final String comment = reviewData['comment'] ?? '';
-
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  ),
+                  const SizedBox(height: 10),
+                  ...items.map((item) {
+                    final String itemName = item['name'] ?? 'Item';
+                    final int qty = item['cartQuantity'] ?? 1;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
                         children: [
-                          const Text(
-                            "Your Rating: ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$qty",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
                           ),
-                          Row(
-                            children: List.generate(5, (index) {
-                              return Icon(
-                                index < rating ? Icons.star : Icons.star_border,
-                                color: index < rating
-                                    ? Colors.amber
-                                    : Colors.grey[300],
-                                size: 18,
-                              );
-                            }),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              itemName,
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      if (comment.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey[200]!),
-                          ),
-                          child: Text(
-                            '"$comment"',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+
+            // --- Footer ---
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                border: Border(
+                  top: BorderSide(color: Colors.grey[100]!, width: 1),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Total amount
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "TOTAL PAID",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: Colors.grey[400],
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        "₹${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount}",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ],
                   ),
-                );
-              },
+
+                  // OTP badge (pending only)
+                  if (status == 'pending')
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00bf63), Color(0xFF00a854)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF00bf63).withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.key_rounded,
+                                color: Colors.white70,
+                                size: 11,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "PICKUP OTP",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            otp,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
+
+            // --- Review section (completed) ---
+            if (status == 'completed') ...[
+              FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('reviews')
+                    .where('orderId', isEqualTo: orderId)
+                    .limit(1)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF00bf63),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const SizedBox();
+                  }
+
+                  final reviewData =
+                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  final int rating = reviewData['rating'] ?? 0;
+                  final String comment = reviewData['comment'] ?? '';
+
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    child: Container(
+                      key: ValueKey(orderId),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          top: BorderSide(color: Colors.grey[100]!, width: 1),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                "YOUR REVIEW",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                              const Spacer(),
+                              // Star rating display
+                              Row(
+                                children: List.generate(5, (index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 2),
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      child: Icon(
+                                        index < rating
+                                            ? Icons.star_rounded
+                                            : Icons.star_outline_rounded,
+                                        key: ValueKey(index < rating),
+                                        color: index < rating
+                                            ? Colors.amber
+                                            : Colors.grey[300],
+                                        size: 18,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+                          if (comment.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.format_quote_rounded,
+                                    size: 16,
+                                    color: Colors.grey[300],
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      comment,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
+  final Color primaryGreen = const Color(0xFF00bf63);
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +39,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── Guest View (Logged Out) ────────────────────────────────────────────────
   Widget _buildGuestView(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF9FAFB), // Soft premium background
       appBar: AppBar(
         title: const Text(
           "Profile",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF9FAFB),
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
       ),
       body: Padding(
@@ -57,15 +65,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const Spacer(flex: 2),
             Container(
-              padding: const EdgeInsets.all(30),
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: const Color(0xFF00bf63).withValues(alpha: 0.1),
+                color: Colors.white,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryGreen.withOpacity(0.15),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.person_rounded,
-                size: 80,
-                color: Color(0xFF00bf63),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 64,
+                  color: primaryGreen,
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -73,23 +95,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               "Come on in!",
               style: TextStyle(
                 fontSize: 28,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
                 color: Colors.black87,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
-              "Log in or Sign up to view your orders, profile, and save your favorite food details.",
+              "Log in or Sign up to view your orders, update your profile, and save your favorite foods.",
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 color: Colors.grey[600],
                 height: 1.5,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const Spacer(flex: 3),
             SizedBox(
               width: double.infinity,
+              height: 56,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -100,26 +125,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00bf63),
+                  backgroundColor: primaryGreen,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
                   elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  shadowColor: primaryGreen.withOpacity(0.5),
                 ),
                 child: const Text(
-                  "LOGIN / SIGN UP",
+                  "Login / Sign Up",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             const SellerBanner(),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -131,6 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+// ── Logged In User Profile ───────────────────────────────────────────────────
 class LoggedInUserProfile extends StatefulWidget {
   final User user;
 
@@ -142,6 +169,7 @@ class LoggedInUserProfile extends StatefulWidget {
 
 class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   final AuthService _authService = AuthService();
+  final Color primaryGreen = const Color(0xFF00bf63);
 
   @override
   Widget build(BuildContext context) {
@@ -166,8 +194,9 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
             userData?['profileImage'] ?? widget.user.photoURL;
 
         return Scaffold(
-          backgroundColor: Colors.grey[50],
+          backgroundColor: const Color(0xFFF9FAFB),
           body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: [
               _buildSliverAppBar(
                 context,
@@ -181,7 +210,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _buildMenuSection(
                         title: "Account",
                         items: [
@@ -189,13 +218,12 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                             icon: Icons.receipt_long_rounded,
                             title: "Your Orders",
                             subtitle: "View past orders & reorder",
+                            isFirst: true,
                             onTap: () {
-                              // Added Navigation logic here
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      const BuyerOrdersScreen(),
+                                  builder: (context) => const BuyerOrdersScreen(),
                                 ),
                               );
                             },
@@ -204,6 +232,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                             icon: Icons.favorite_rounded,
                             title: "Favorites",
                             subtitle: "Your favorite restaurants & items",
+                            isLast: true,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -222,16 +251,18 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                           _buildMenuItem(
                             icon: Icons.notifications_active_rounded,
                             title: "Notifications",
+                            isFirst: true,
                             onTap: () {},
                           ),
                           _buildMenuItem(
                             icon: Icons.help_outline_rounded,
                             title: "Help & Support",
+                            isLast: true,
                             onTap: () {},
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
                       _buildLogoutButton(),
                       const SizedBox(height: 40),
                     ],
@@ -245,6 +276,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
     );
   }
 
+  // ── Profile Header (SliverAppBar) ──────────────────────────────────────────
   Widget _buildSliverAppBar(
     BuildContext context,
     User user,
@@ -253,123 +285,174 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
     Map<String, dynamic>? userData,
   ) {
     return SliverAppBar(
-      expandedHeight: 200,
-      backgroundColor: const Color(0xFF00bf63),
+      expandedHeight: 240,
+      backgroundColor: Colors.transparent,
       pinned: true,
+      elevation: 0,
+      stretch: true,
+      shape: const ContinuousRectangleBorder(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(64)),
+      ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    EditProfileScreen(user: user, userData: userData),
-              ),
-            );
-          },
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF43A047), Color(0xFF00bf63)],
-              begin: Alignment.bottomLeft,
-              end: Alignment.topRight,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: ClipOval(
-                    child: (profileImage != null && profileImage.isNotEmpty)
-                        ? Image.network(
-                            profileImage,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.white,
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Color(0xFF00bf63),
-                                ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: Colors.white,
-                            child: const Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Color(0xFF00bf63),
-                            ),
-                          ),
+        Padding(
+          padding: const EdgeInsets.only(right: 16.0, top: 8.0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(user: user, userData: userData),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.edit_rounded, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text("Edit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const SizedBox(height: 12),
-              Text(
-                displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                user.email ?? "",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 14,
-                ),
+            ),
+          ),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+        background: Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+            gradient: LinearGradient(
+              colors: [Color(0xFF388E3C), Color(0xFF00bf63)],
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF00bf63),
+                blurRadius: 20,
+                offset: Offset(0, 4),
               ),
             ],
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 10),
+                // Avatar with premium border
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: 90,
+                    height: 90,
+                    child: ClipOval(
+                      child: (profileImage != null && profileImage.isNotEmpty)
+                          ? Image.network(
+                              profileImage,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildAvatarPlaceholder();
+                              },
+                            )
+                          : _buildAvatarPlaceholder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    user.email ?? "No email provided",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMenuSection({
-    required String title,
-    required List<Widget> items,
-  }) {
+  Widget _buildAvatarPlaceholder() {
+    return Container(
+      color: Colors.grey[100],
+      child: const Icon(
+        Icons.person_rounded,
+        size: 50,
+        color: Color(0xFF00bf63),
+      ),
+    );
+  }
+
+  // ── Menu Sections & Items ────────────────────────────────────────────────────
+  Widget _buildMenuSection({required String title, required List<Widget> items}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-            letterSpacing: 0.5,
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, bottom: 12.0),
+          child: Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey[500],
+              letterSpacing: 1.2,
+            ),
           ),
         ),
-        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 20,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -384,78 +467,102 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    bool isFirst = false,
+    bool isLast = false,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.vertical(
+          top: isFirst ? const Radius.circular(24) : Radius.zero,
+          bottom: isLast ? const Radius.circular(24) : Radius.zero,
+        ),
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00bf63).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: const Color(0xFF00bf63), size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: primaryGreen, size: 22),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Colors.grey[300],
+                  ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Colors.grey[400],
-            ),
+            if (!isLast)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Colors.grey.shade100,
+                indent: 70, // Aligns divider with text
+                endIndent: 20,
+              ),
           ],
         ),
       ),
     );
   }
 
+  // ── Logout Button ────────────────────────────────────────────────────────────
   Widget _buildLogoutButton() {
-    return TextButton(
-      onPressed: () async {
-        await _authService.signOut();
-      },
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.red[400],
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: Colors.red[50],
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.logout_rounded, size: 20),
-          SizedBox(width: 8),
-          Text(
-            "Log Out",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          await _authService.signOut();
+        },
+        icon: const Icon(Icons.logout_rounded, size: 22),
+        label: const Text(
+          "Log Out",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.red[600],
+          backgroundColor: Colors.red[50],
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+        ),
       ),
     );
   }
