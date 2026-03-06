@@ -7,6 +7,7 @@ import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
 import 'package:food_now/screens/buyer_orders_screen.dart';
 import 'package:food_now/screens/favorites_screen.dart';
+import 'package:food_now/screens/notifications_screen.dart'; // <-- Imported NotificationsScreen
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/widgets/seller_banner.dart';
 
@@ -223,7 +224,8 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const BuyerOrdersScreen(),
+                                  builder: (context) =>
+                                      const BuyerOrdersScreen(),
                                 ),
                               );
                             },
@@ -249,10 +251,19 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                         title: "Settings & Support",
                         items: [
                           _buildMenuItem(
+                            // <-- UPDATED THIS ITEM TO NAVIGATE TO NOTIFICATION SCREEN
                             icon: Icons.notifications_active_rounded,
                             title: "Notifications",
                             isFirst: true,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const NotificationsScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _buildMenuItem(
                             icon: Icons.help_outline_rounded,
@@ -305,12 +316,16 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => EditProfileScreen(user: user, userData: userData),
+                      builder: (context) =>
+                          EditProfileScreen(user: user, userData: userData),
                     ),
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -320,7 +335,14 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                     children: [
                       Icon(Icons.edit_rounded, color: Colors.white, size: 16),
                       SizedBox(width: 6),
-                      Text("Edit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text(
+                        "Edit",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -330,7 +352,10 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+        stretchModes: const [
+          StretchMode.zoomBackground,
+          StretchMode.blurBackground,
+        ],
         background: Container(
           decoration: const BoxDecoration(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
@@ -394,7 +419,10 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -428,7 +456,10 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
   }
 
   // ── Menu Sections & Items ────────────────────────────────────────────────────
-  Widget _buildMenuSection({required String title, required List<Widget> items}) {
+  Widget _buildMenuSection({
+    required String title,
+    required List<Widget> items,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

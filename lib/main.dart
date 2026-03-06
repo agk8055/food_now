@@ -18,6 +18,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_now/services/location_service.dart';
 import 'package:food_now/screens/not_serviceable_screen.dart';
 
+// Global Navigator Key to handle routing from background notifications
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -32,7 +35,6 @@ Future<bool> _checkServiceability() async {
     GeoPoint? userLocation;
     final User? user = FirebaseAuth.instance.currentUser;
 
-    // 1. Try Firestore and check role
     if (user != null) {
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -41,7 +43,6 @@ Future<bool> _checkServiceability() async {
       if (doc.exists) {
         final data = doc.data();
 
-        // Skip serviceability check for admins and sellers
         if (data?['role'] == 'admin' || data?['role'] == 'seller') {
           return true;
         }
@@ -53,7 +54,6 @@ Future<bool> _checkServiceability() async {
       }
     }
 
-    // 2. Try SharedPreferences
     if (userLocation == null) {
       final prefs = await SharedPreferences.getInstance();
       final double? lat = prefs.getDouble('cached_geopoint_lat');
@@ -63,7 +63,6 @@ Future<bool> _checkServiceability() async {
       }
     }
 
-    // 3. Try Device Location
     if (userLocation == null) {
       final locationService = LocationService();
       final position = await locationService.getCurrentPosition();
@@ -73,11 +72,9 @@ Future<bool> _checkServiceability() async {
     }
 
     if (userLocation == null) {
-      // Can't determine location at all, let them in to search
       return true;
     }
 
-    // Check for nearby approved shops
     final shopsSnapshot = await FirebaseFirestore.instance
         .collection('shops')
         .where('verificationStatus', isEqualTo: 'approved')
@@ -96,7 +93,6 @@ Future<bool> _checkServiceability() async {
         );
 
         if (distance <= 10000) {
-          // 10km radius
           return true;
         }
       }
@@ -105,7 +101,7 @@ Future<bool> _checkServiceability() async {
     return false;
   } catch (e) {
     debugPrint("Error checking serviceability: $e");
-    return true; // fail-open
+    return true;
   }
 }
 
@@ -118,6 +114,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Food Now',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey, // Attach the global key here
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF00bf63),
@@ -147,7 +144,6 @@ class AuthWrapper extends StatelessWidget {
           return AuthenticatedUserHandler(key: ValueKey(user.uid), user: user);
         }
 
-        // Not logged in
         return const HomeScreen();
       },
     );
@@ -193,7 +189,6 @@ class _AuthenticatedUserHandlerState extends State<AuthenticatedUserHandler> {
               final shopDoc = shopSnapshot.data;
 
               if (shopDoc == null) {
-                // Case 1: No shop
                 return const SellerRegistrationScreen();
               }
 
@@ -201,16 +196,13 @@ class _AuthenticatedUserHandlerState extends State<AuthenticatedUserHandler> {
               final status = data['verificationStatus'];
 
               if (status == 'rejected') {
-                // Case 3: Rejected
                 return const ShopRejectedScreen();
               }
 
-              // Case 2: Exists (Pending/Approved)
               return const SellerDashboard();
             },
           );
         } else {
-          // Default to HomeScreen for buyers or unknown roles
           return const HomeScreen();
         }
       },

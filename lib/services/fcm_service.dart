@@ -1,5 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:food_now/services/user_service.dart';
+import 'package:food_now/main.dart'; // Import navigatorKey
+import 'package:food_now/screens/shop_menu_screen.dart'; // Target navigation screen
 
 class FcmService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -26,11 +29,52 @@ class FcmService {
           print("FCM Token Refreshed: $newToken");
           _userService.updateFcmToken(uid, newToken);
         });
+
+        // --- Notification Click Listeners ---
+
+        // 1. App is in the background and opened via notification tap
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          _handleNotificationClick(message);
+        });
+
+        // 2. App is completely terminated and opened via notification tap
+        FirebaseMessaging.instance.getInitialMessage().then((
+          RemoteMessage? message,
+        ) {
+          if (message != null) {
+            _handleNotificationClick(message);
+          }
+        });
       } else {
         print('User declined or has not accepted permission');
       }
     } catch (e) {
       print("Error initializing FCM: $e");
+    }
+  }
+
+  // Handle routing based on the data payload from the backend
+  void _handleNotificationClick(RemoteMessage message) {
+    if (message.data.containsKey('type')) {
+      final String type = message.data['type'];
+
+      if (type == 'favorite_food_alert') {
+        final String? shopId = message.data['shopId'];
+        // Extract shopName from payload, provide a fallback just in case
+        final String shopName = message.data['shopName'] ?? 'Favorite Shop';
+
+        // Navigate to the Shop Menu Screen if we have a valid context and shopId
+        if (shopId != null && navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(
+              builder: (context) => ShopMenuScreen(
+                shopId: shopId,
+                shopName: shopName, // <-- NOW PASSING BOTH REQUIRED PARAMETERS
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 }
