@@ -8,6 +8,7 @@ import '../widgets/custom_loader.dart';
 import 'seller_dashboard.dart';
 
 import 'package:food_now/services/location_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SellerRegistrationScreen extends StatefulWidget {
   const SellerRegistrationScreen({super.key});
@@ -37,6 +38,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   final _lngController = TextEditingController();
   final _addressController = TextEditingController();
   final _imageUrlController = TextEditingController(); // Placeholder for now
+  final _imageUrl2Controller = TextEditingController();
+  final _mapUrlController = TextEditingController();
 
   bool _isSigningUp = true; // Toggle between Signup and Shop Creation
   bool _isLoading = false;
@@ -86,9 +89,15 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             }
 
             final images = data['images'] as List<dynamic>?;
-            if (images != null && images.isNotEmpty) {
-              _imageUrlController.text = images.first.toString();
+            if (images != null) {
+              if (images.isNotEmpty) {
+                _imageUrlController.text = images[0].toString();
+              }
+              if (images.length > 1) {
+                _imageUrl2Controller.text = images[1].toString();
+              }
             }
+            _mapUrlController.text = data['mapUrl'] ?? '';
           });
         }
       } catch (e) {
@@ -110,6 +119,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
     _lngController.dispose();
     _addressController.dispose();
     _imageUrlController.dispose();
+    _imageUrl2Controller.dispose();
+    _mapUrlController.dispose();
     super.dispose();
   }
 
@@ -209,7 +220,10 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
         'images': [
           if (_imageUrlController.text.isNotEmpty)
             _imageUrlController.text.trim(),
+          if (_imageUrl2Controller.text.isNotEmpty)
+            _imageUrl2Controller.text.trim(),
         ],
+        'mapUrl': _mapUrlController.text.trim(),
         'location': {
           'geohash': _locationService.getGeohash(
             double.tryParse(_latController.text) ?? 0.0,
@@ -457,8 +471,30 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       const SizedBox(height: 16),
       _buildTextField(
         controller: _imageUrlController,
-        label: 'Image URL (Optional)',
+        label: 'Image URL 1 (Optional)',
         icon: Icons.image,
+      ),
+      const SizedBox(height: 16),
+      _buildTextField(
+        controller: _imageUrl2Controller,
+        label: 'Image URL 2 (Optional)',
+        icon: Icons.image_outlined,
+      ),
+      const SizedBox(height: 16),
+      _buildTextField(
+        controller: _mapUrlController,
+        label: 'Google Map URL (Optional)',
+        icon: Icons.map,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.open_in_new),
+          tooltip: 'Open Google Maps to copy link',
+          onPressed: () async {
+            final Uri url = Uri.parse('https://maps.google.com');
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
       ),
       const SizedBox(height: 32),
       _isLoading

@@ -1,10 +1,9 @@
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../widgets/custom_loader.dart';
 
@@ -164,6 +163,27 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
       (sum, item) =>
           sum + ((item['price'] as double) * (item['cartQuantity'] as int)),
     );
+  }
+
+  bool _isItemExpired(String? dateStr, String? timeStr) {
+    if (dateStr == null || timeStr == null || dateStr.isEmpty || timeStr.isEmpty) return false;
+    try {
+      DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
+      DateTime time;
+      try {
+        time = DateFormat('h:mm a').parse(timeStr);
+      } catch (e) {
+        try {
+          time = DateFormat('H:mm').parse(timeStr);
+        } catch (e) {
+          time = DateFormat('HH:mm').parse(timeStr);
+        }
+      }
+      DateTime itemExpiry = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      return DateTime.now().isAfter(itemExpiry);
+    } catch (e) {
+      return false;
+    }
   }
 
   // ── Glassmorphic Button Helper ─────────────────────────────────────────────
@@ -937,7 +957,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                 return const Center(child: CustomLoader());
               }
 
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              final allDocs = snapshot.data!.docs;
+              final docs = allDocs.where((doc) {
+                final item = doc.data() as Map<String, dynamic>;
+                final int quantity = item['quantity'] ?? 0;
+                return !_isItemExpired(item['expiryDate'], item['expiryTime']) && quantity > 0;
+              }).toList();
+
+              if (docs.isEmpty) {
                 return CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(child: _buildRestaurantHeader(context)),
@@ -954,8 +981,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                   ],
                 );
               }
-
-              final docs = snapshot.data!.docs;
 
               return CustomScrollView(
                 slivers: [

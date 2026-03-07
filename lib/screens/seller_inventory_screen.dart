@@ -3,6 +3,7 @@ import '../widgets/custom_loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/screens/seller_add_item_screen.dart';
+import 'package:intl/intl.dart';
 
 class SellerInventoryScreen extends StatelessWidget {
   const SellerInventoryScreen({super.key});
@@ -113,10 +114,35 @@ class SellerInventoryScreen extends StatelessWidget {
     int quantity,
     String? imageUrl,
   ) {
+    bool _isItemExpired(String? dateStr, String? timeStr) {
+      if (dateStr == null || timeStr == null || dateStr.isEmpty || timeStr.isEmpty) return false;
+      try {
+        DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
+        DateTime time;
+        try {
+          time = DateFormat('h:mm a').parse(timeStr);
+        } catch (e) {
+          try {
+            time = DateFormat('H:mm').parse(timeStr);
+          } catch (e) {
+            time = DateFormat('HH:mm').parse(timeStr);
+          }
+        }
+        DateTime itemExpiry = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        return DateTime.now().isAfter(itemExpiry);
+      } catch (e) {
+        return false;
+      }
+    }
+
     Color statusColor = const Color(0xFF00bf63); // Default Green
     String statusText = "IN STOCK";
+    bool isExpired = _isItemExpired(item['expiryDate'], item['expiryTime']);
 
-    if (quantity == 0) {
+    if (isExpired) {
+      statusColor = Colors.redAccent;
+      statusText = "EXPIRED";
+    } else if (quantity == 0) {
       statusColor = Colors.redAccent;
       statusText = "OUT OF STOCK";
     } else if (quantity < 5) {
@@ -314,18 +340,27 @@ class SellerInventoryScreen extends StatelessWidget {
     final TextEditingController priceController = TextEditingController(
       text: item['discountedPrice'].toString(),
     );
+    final TextEditingController expiryDateController = TextEditingController(
+      text: item['expiryDate'] ?? '',
+    );
+    final TextEditingController expiryTimeController = TextEditingController(
+      text: item['expiryTime'] ?? '',
+    );
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          "Edit ${item['name']}",
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              "Edit ${item['name']}",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
             TextField(
               controller: stockController,
               keyboardType: TextInputType.number,
@@ -345,9 +380,68 @@ class SellerInventoryScreen extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          expiryDateController.text = DateFormat('yyyy-MM-dd').format(picked);
+                        });
+                      }
+                    },
+                    child: IgnorePointer(
+                      child: TextField(
+                        controller: expiryDateController,
+                        decoration: const InputDecoration(
+                          labelText: "Expiry Date",
+                          prefixIcon: Icon(Icons.calendar_today, size: 20),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          expiryTimeController.text = picked.format(context);
+                        });
+                      }
+                    },
+                    child: IgnorePointer(
+                      child: TextField(
+                        controller: expiryTimeController,
+                        decoration: const InputDecoration(
+                          labelText: "Expiry Time",
+                          prefixIcon: Icon(Icons.access_time, size: 20),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
@@ -363,6 +457,8 @@ class SellerInventoryScreen extends StatelessWidget {
                     'discountedPrice':
                         double.tryParse(priceController.text) ??
                         item['discountedPrice'],
+                    'expiryDate': expiryDateController.text,
+                    'expiryTime': expiryTimeController.text,
                   });
               Navigator.pop(context);
             },
@@ -378,6 +474,8 @@ class SellerInventoryScreen extends StatelessWidget {
             ),
           ),
         ],
+      );
+      },
       ),
     );
   }

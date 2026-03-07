@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/screens/login_screen.dart';
 import '../widgets/custom_loader.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SellerProfileScreen extends StatefulWidget {
   const SellerProfileScreen({super.key});
@@ -35,7 +36,15 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
       text: data['publicEmail'] ?? _user?.email ?? '',
     );
     final imageController = TextEditingController(
-      text: (data['images'] as List?)?.first ?? '',
+      text: (data['images'] as List?)?.isNotEmpty == true ? (data['images'] as List).first : '',
+    );
+    final image2Controller = TextEditingController(
+      text: (data['images'] as List?) != null && (data['images'] as List).length > 1 
+          ? (data['images'] as List)[1] 
+          : '',
+    );
+    final mapUrlController = TextEditingController(
+      text: data['mapUrl'] ?? '',
     );
 
     showDialog(
@@ -74,8 +83,34 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
               TextField(
                 controller: imageController,
                 decoration: const InputDecoration(
-                  labelText: "Image URL",
+                  labelText: "Image URL 1",
                   border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: image2Controller,
+                decoration: const InputDecoration(
+                  labelText: "Image URL 2 (Optional)",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: mapUrlController,
+                decoration: InputDecoration(
+                  labelText: "Google Map URL (Optional)",
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.open_in_new),
+                    tooltip: 'Open Google Maps to copy link',
+                    onPressed: () async {
+                      final Uri url = Uri.parse('https://maps.google.com');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
                 ),
               ),
             ],
@@ -97,7 +132,11 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                     'publicEmail': emailController.text.trim(),
                     'location.address': addressController.text
                         .trim(), // Dot notation to update nested field
-                    'images': [imageController.text.trim()],
+                    'images': [
+                      if (imageController.text.trim().isNotEmpty) imageController.text.trim(),
+                      if (image2Controller.text.trim().isNotEmpty) image2Controller.text.trim(),
+                    ],
+                    'mapUrl': mapUrlController.text.trim(),
                   });
               if (mounted) Navigator.pop(context);
             },
@@ -169,6 +208,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
           final String imageUrl = (data['images'] as List?)?.isNotEmpty == true
               ? data['images'][0]
               : "";
+          final String mapUrl = data['mapUrl'] ?? '';
           final bool isOpen = data['isOpen'] ?? true;
 
           return SingleChildScrollView(
@@ -314,6 +354,33 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                         doc.id,
                         isCopyable: true,
                       ),
+                      if (mapUrl.isNotEmpty) ...[
+                        const Divider(height: 1, indent: 56),
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.map_outlined, color: Colors.blue, size: 20),
+                          ),
+                          title: const Text(
+                            "Google Map",
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          subtitle: const Text(
+                            "Tap to open in Google Maps",
+                            style: const TextStyle(fontSize: 16, color: Colors.blueAccent),
+                          ),
+                          onTap: () async {
+                            final Uri url = Uri.parse(mapUrl);
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
