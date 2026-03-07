@@ -208,15 +208,34 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
-  List<Widget> get _screens => [
-    HomeBody(onNavigate: _onItemTapped),
-    const FoodScreen(),
-    const SupermartScreen(),
-    const ProfileScreen(),
-  ];
+  // Since we need to pass arguments dynamically to FoodScreen, 
+  // we handle the FoodScreen creation in the builder rather than a static list.
+  Widget _getScreen(int index) {
+    switch (index) {
+      case 0:
+        return HomeBody(onNavigate: _onItemTapped);
+      case 1:
+        return FoodScreen(initialCategory: _homeToFoodCategory);
+      case 2:
+        return const SupermartScreen();
+      case 3:
+        return const ProfileScreen();
+      default:
+        return HomeBody(onNavigate: _onItemTapped);
+    }
+  }
 
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
+  String? _homeToFoodCategory;
+
+  void _onItemTapped(int index, {String? category}) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 1) {
+        _homeToFoodCategory = category;
+      } else {
+        _homeToFoodCategory = null; // Clear if navigating elsewhere
+      }
+    });
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -244,15 +263,15 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           child: _selectedIndex < 3
               ? NestedScrollView(
-                  key: ValueKey(_selectedIndex),
+                  key: ValueKey('$_selectedIndex-$_homeToFoodCategory'),
                   headerSliverBuilder: (context, innerBoxIsScrolled) {
                     return [HomeAppBar(showBanner: _selectedIndex == 0)];
                   },
-                  body: _screens[_selectedIndex],
+                  body: _getScreen(_selectedIndex),
                 )
               : KeyedSubtree(
                   key: ValueKey(_selectedIndex),
-                  child: _screens[_selectedIndex],
+                  child: _getScreen(_selectedIndex),
                 ),
         ),
         bottomNavigationBar: CustomBottomNavigationBar(
@@ -267,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen>
 // ─── HomeBody ────────────────────────────────────────────────────────────────
 
 class HomeBody extends StatelessWidget {
-  final Function(int) onNavigate;
+  final Function(int, {String? category}) onNavigate;
 
   const HomeBody({super.key, required this.onNavigate});
 
@@ -433,7 +452,7 @@ class _FeaturedCard extends StatelessWidget {
 // ─── Category grid ────────────────────────────────────────────────────────────
 
 class _CategoryGrid extends StatelessWidget {
-  final Function(int) onNavigate;
+  final Function(int, {String? category}) onNavigate;
 
   const _CategoryGrid({required this.onNavigate});
 
@@ -448,6 +467,7 @@ class _CategoryGrid extends StatelessWidget {
       "bgColor": Color(0xFFFFF5F5),
       "iconBg": Color(0xFFFFECEC),
       "index": 1,
+      "categoryValue": "Restaurant",
     },
     {
       "title": "SUPERMART",
@@ -470,6 +490,7 @@ class _CategoryGrid extends StatelessWidget {
       "bgColor": Color(0xFFFFFBEB),
       "iconBg": Color(0xFFFEF3C7),
       "index": 1,
+      "categoryValue": "Bakery & Cafe",
     },
     {
       "title": "CATERING",
@@ -481,6 +502,7 @@ class _CategoryGrid extends StatelessWidget {
       "bgColor": Color(0xFFF0F9FF),
       "iconBg": Color(0xFFE0F2FE),
       "index": 1,
+      "categoryValue": "Catering",
     },
   ];
 
@@ -514,7 +536,7 @@ class _CategoryGrid extends StatelessWidget {
 
 class _CategoryCard extends StatefulWidget {
   final Map<String, dynamic> category;
-  final Function(int) onNavigate;
+  final Function(int, {String? category}) onNavigate;
   final Duration animationDelay;
 
   const _CategoryCard({
@@ -581,7 +603,10 @@ class _CategoryCardState extends State<_CategoryCard>
             onTapUp: (_) {
               setState(() => _isPressed = false);
               if (item['index'] != null) {
-                widget.onNavigate(item['index'] as int);
+                widget.onNavigate(
+                  item['index'] as int,
+                  category: item['categoryValue'] as String?,
+                );
               }
             },
             onTapCancel: () => setState(() => _isPressed = false),

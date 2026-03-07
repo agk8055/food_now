@@ -23,7 +23,31 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
   final _expiryTimeController = TextEditingController();
   final _imageUrlController = TextEditingController();
 
+  String? _shopCategory;
+  String _dietType = 'Veg';
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShopCategory();
+  }
+
+  Future<void> _fetchShopCategory() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final shopDoc = await UserService().getShop(user.uid);
+        if (shopDoc != null && mounted) {
+          setState(() {
+            _shopCategory = shopDoc['category'];
+          });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   @override
   void dispose() {
@@ -96,6 +120,7 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
         'expiryDate': _expiryDateController.text,
         'expiryTime': _expiryTimeController.text,
         'imageUrl': _imageUrlController.text.trim(),
+        if (_shopCategory != 'Supermarket') 'dietType': _dietType,
         'isSoldOut': false,
         'createdAt': FieldValue.serverTimestamp(),
       };
@@ -155,6 +180,39 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
+
+              if (_shopCategory != 'Supermarket') ...[
+                DropdownButtonFormField<String>(
+                  value: _dietType,
+                  items: const [
+                    DropdownMenuItem(value: 'Veg', child: Text('Veg')),
+                    DropdownMenuItem(value: 'Non-Veg', child: Text('Non-Veg')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _dietType = val);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Diet Type',
+                    prefixIcon: Icon(
+                      Icons.restaurant_menu,
+                      color: _dietType == 'Veg' ? Colors.green : Colors.red,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               Row(
                 children: [

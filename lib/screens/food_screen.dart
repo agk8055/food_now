@@ -8,7 +8,9 @@ import '../widgets/shop_card.dart';
 
 
 class FoodScreen extends StatefulWidget {
-  const FoodScreen({super.key});
+  final String? initialCategory;
+
+  const FoodScreen({super.key, this.initialCategory});
 
   @override
   State<FoodScreen> createState() => _FoodScreenState();
@@ -17,10 +19,19 @@ class FoodScreen extends StatefulWidget {
 class _FoodScreenState extends State<FoodScreen> {
   GeoPoint? _userLocation;
   bool _isLoadingLocation = true;
+  late String _selectedCategory;
+
+  final List<String> _categories = [
+    'All',
+    'Restaurant',
+    'Bakery & Cafe',
+    'Catering',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _selectedCategory = widget.initialCategory ?? 'All';
     _fetchUserLocation();
   }
 
@@ -72,12 +83,14 @@ class _FoodScreenState extends State<FoodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String appBarTitle = _selectedCategory == 'All' ? 'Food' : _selectedCategory;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: const Text(
-          "Restaurants",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+        title: Text(
+          appBarTitle,
+          style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -104,12 +117,22 @@ class _FoodScreenState extends State<FoodScreen> {
                   );
                 }
 
-                // Filter out Supermarkets on client side to avoid index issues with 'isNotEqualTo'
                 List<QueryDocumentSnapshot> shops = snapshot.data!.docs.where((
                   doc,
                 ) {
                   final data = doc.data() as Map<String, dynamic>;
-                  return data['category'] != 'Supermarket';
+                  final category = data['category'] ?? 'Other';
+                  
+                  // Hide Supermarkets
+                  if (category == 'Supermarket') return false;
+
+                  // Apply filter
+                  if (_selectedCategory == 'Restaurant' && category != 'Restaurant') return false;
+                  if (_selectedCategory == 'Bakery & Cafe' && category != 'Bakery') return false; // Assuming 'Bakery' is the enum value
+                  if (_selectedCategory == 'Catering' && category != 'Catering') return false; // Assuming 'Catering' is the enum value
+                  
+                  // If 'All', keeping everything EXCEPT Supermarket (already handled)
+                  return true;
                 }).toList();
 
                 if (_userLocation != null) {
@@ -164,20 +187,100 @@ class _FoodScreenState extends State<FoodScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: shops.length,
-                  itemBuilder: (context, index) {
-                    final shop = shops[index];
-                    final data = shop.data() as Map<String, dynamic>;
+                return CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: Colors.white,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: _categories.map((category) {
+                              final isSelected = _selectedCategory == category;
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCategory = category;
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.only(right: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFF00bf63)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? const Color(0xFF00bf63)
+                                          : Colors.grey.withOpacity(0.2),
+                                      width: isSelected ? 0 : 1,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: const Color(0xFF00bf63)
+                                                  .withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            )
+                                          ]
+                                        : [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.02),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            )
+                                          ],
+                                  ),
+                                  child: Text(
+                                    category,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.grey[700],
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      fontSize: 14,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final shop = shops[index];
+                            final data = shop.data() as Map<String, dynamic>;
 
-                    return ShopCard(
-                      shopId: shop.id,
-                      data: data,
-                      defaultIcon: Icons.restaurant,
-                      defaultCategory: "Restaurant",
-                    );
-                  },
+                            return ShopCard(
+                              shopId: shop.id,
+                              data: data,
+                              defaultIcon: Icons.restaurant,
+                              defaultCategory: "Restaurant",
+                            );
+                          },
+                          childCount: shops.length,
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

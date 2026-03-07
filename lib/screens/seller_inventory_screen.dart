@@ -5,8 +5,37 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/screens/seller_add_item_screen.dart';
 import 'package:intl/intl.dart';
 
-class SellerInventoryScreen extends StatelessWidget {
+class SellerInventoryScreen extends StatefulWidget {
   const SellerInventoryScreen({super.key});
+
+  @override
+  State<SellerInventoryScreen> createState() => _SellerInventoryScreenState();
+}
+
+class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
+  String? _shopCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShopCategory();
+  }
+
+  Future<void> _fetchShopCategory() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('shops').doc(user.uid).get();
+        if (doc.exists && mounted) {
+          setState(() {
+            _shopCategory = doc['category'];
+          });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -347,6 +376,8 @@ class SellerInventoryScreen extends StatelessWidget {
       text: item['expiryTime'] ?? '',
     );
 
+    String currentDietType = item['dietType'] ?? 'Veg';
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -381,6 +412,29 @@ class SellerInventoryScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            if (_shopCategory != 'Supermarket') ...[
+              DropdownButtonFormField<String>(
+                value: currentDietType,
+                items: const [
+                  DropdownMenuItem(value: 'Veg', child: Text('Veg')),
+                  DropdownMenuItem(value: 'Non-Veg', child: Text('Non-Veg')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => currentDietType = val);
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Diet Type',
+                  prefixIcon: Icon(
+                    Icons.restaurant_menu,
+                    color: currentDietType == 'Veg' ? Colors.green : Colors.red,
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Row(
               children: [
                 Expanded(
@@ -459,6 +513,7 @@ class SellerInventoryScreen extends StatelessWidget {
                         item['discountedPrice'],
                     'expiryDate': expiryDateController.text,
                     'expiryTime': expiryTimeController.text,
+                    if (_shopCategory != 'Supermarket') 'dietType': currentDietType,
                   });
               Navigator.pop(context);
             },

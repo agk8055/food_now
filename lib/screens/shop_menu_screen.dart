@@ -42,6 +42,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
 
   bool _isTogglingFavorite = false;
 
+  String _dietFilter = 'All'; // 'All', 'Veg', 'Non-Veg'
+
   final Color primaryGreen = const Color(0xFF00bf63);
 
   @override
@@ -1068,7 +1070,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               final docs = allDocs.where((doc) {
                 final item = doc.data() as Map<String, dynamic>;
                 final int quantity = item['quantity'] ?? 0;
-                return !_isItemExpired(item['expiryDate'], item['expiryTime']) && quantity > 0;
+                
+                bool matchesDiet = true;
+                if (_resolvedShopData['category'] != 'Supermarket' && _dietFilter != 'All') {
+                  final itemDiet = item['dietType'] ?? 'Veg';
+                  matchesDiet = itemDiet == _dietFilter;
+                }
+                
+                return !_isItemExpired(item['expiryDate'], item['expiryTime']) && quantity > 0 && matchesDiet;
               }).toList();
 
               if (docs.isEmpty) {
@@ -1092,6 +1101,76 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               return CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(child: _buildRestaurantHeader(context)),
+
+                  if (_resolvedShopData['category'] != 'Supermarket')
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: ['All', 'Veg', 'Non-Veg'].map((type) {
+                              final isSelected = _dietFilter == type;
+                              Color typeColor = Colors.black87;
+                              if (type == 'Veg') typeColor = Colors.green;
+                              if (type == 'Non-Veg') typeColor = Colors.red;
+                              if (type == 'All') typeColor = const Color(0xFF00bf63);
+
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() => _dietFilter = type);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.only(right: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? typeColor.withOpacity(0.15) : Colors.white,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: isSelected ? typeColor : Colors.grey.withOpacity(0.2),
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                    boxShadow: isSelected ? [
+                                      BoxShadow(
+                                        color: typeColor.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      )
+                                    ] : [],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (type != 'All') ...[
+                                        Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? typeColor : Colors.transparent,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: typeColor, width: 2),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Text(
+                                        type,
+                                        style: TextStyle(
+                                          color: isSelected ? typeColor : Colors.grey[700],
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
 
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1135,6 +1214,30 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    if (_resolvedShopData['category'] != 'Supermarket')
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: (item['dietType'] ?? 'Veg') == 'Veg' ? Colors.green : Colors.red,
+                                            ),
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                          child: Center(
+                                            child: Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: BoxDecoration(
+                                                color: (item['dietType'] ?? 'Veg') == 'Veg' ? Colors.green : Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     Text(
                                       item['name'],
 
