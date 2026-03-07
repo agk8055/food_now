@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/custom_loader.dart';
 
@@ -126,15 +127,32 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     final item = doc.data() as Map<String, dynamic>;
 
     final id = doc.id;
+    final int stock = item['quantity'] ?? 0;
 
     setState(() {
       if (_cart.containsKey(id)) {
-        _cart[id]!['cartQuantity'] += change;
+        int newQty = (_cart[id]!['cartQuantity'] as int) + change;
+        
+        if (newQty > stock && change > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Only $stock items left in stock for ${item['name']}!')),
+          );
+          return;
+        }
+
+        _cart[id]!['cartQuantity'] = newQty;
 
         if (_cart[id]!['cartQuantity'] <= 0) {
           _cart.remove(id);
         }
       } else if (change > 0) {
+        if (1 > stock) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Out of stock for ${item['name']}!')),
+          );
+          return;
+        }
+        
         _cart[id] = {
           'itemId': id,
 
@@ -146,6 +164,72 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         };
       }
     });
+  }
+
+  Future<void> _handleCheckout(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CustomLoader()),
+    );
+
+    try {
+      List<String> itemsOutStock = [];
+      for (var cartItem in _cart.values) {
+        final doc = await FirebaseFirestore.instance.collection('food_items').doc(cartItem['itemId']).get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          final int stock = data['quantity'] ?? 0;
+          if (cartItem['cartQuantity'] > stock) {
+            itemsOutStock.add("${cartItem['name']} (Only $stock left)");
+          }
+        } else {
+	        itemsOutStock.add("${cartItem['name']} (Item no longer available)");
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+
+      if (itemsOutStock.isNotEmpty) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text("Not Enough Stock"),
+              content: Text("The following items do not have enough stock:\n\n${itemsOutStock.join('\n')}"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK", style: TextStyle(color: Color(0xFF00bf63))),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CheckoutScreen(
+              shopId: widget.shopId,
+              shopName: widget.shopName,
+              cartItems: _cart.values.toList(),
+              totalAmount: _getTotalPrice(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error validating stock: $e')),
+        );
+      }
+    }
   }
 
   int _getTotalItems() {
@@ -233,6 +317,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         data['location']?['address'] ?? 'Address not available';
 
     final String rating = (data['rating'] ?? '4.0').toString();
+
+    final String mapUrl = data['mapUrl'] ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,6 +602,27 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                   ),
                 ),
               ),
+
+              if (mapUrl.isNotEmpty) ...[
+                const SizedBox(width: 8),
+
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.map_rounded, color: Colors.blue),
+                    onPressed: () async {
+                      final Uri url = Uri.parse(mapUrl);
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    tooltip: 'View on Google Maps',
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1326,20 +1433,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                       ),
 
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-
-                            MaterialPageRoute(
-                              builder: (context) => CheckoutScreen(
-                                shopId: widget.shopId,
-                                shopName: widget.shopName,
-                                cartItems: _cart.values.toList(),
-                                totalAmount: _getTotalPrice(),
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: () => _handleCheckout(context),
 
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryGreen,

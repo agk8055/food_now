@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/screens/login_screen.dart';
+import 'package:food_now/screens/seller_edit_screen.dart';
 import '../widgets/custom_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -23,132 +24,11 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     });
   }
 
-  // Edit Shop Details Dialog (Restricted fields)
-  void _showEditShopDialog(BuildContext context, DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    // Pre-fill controllers
-    final nameController = TextEditingController(text: data['shopName']);
-    final addressController = TextEditingController(
-      text: data['location']?['address'] ?? '',
-    );
-    final emailController = TextEditingController(
-      text: data['publicEmail'] ?? _user?.email ?? '',
-    );
-    final imageController = TextEditingController(
-      text: (data['images'] as List?)?.isNotEmpty == true ? (data['images'] as List).first : '',
-    );
-    final image2Controller = TextEditingController(
-      text: (data['images'] as List?) != null && (data['images'] as List).length > 1 
-          ? (data['images'] as List)[1] 
-          : '',
-    );
-    final mapUrlController = TextEditingController(
-      text: data['mapUrl'] ?? '',
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Edit Shop Details"),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: "Shop Name",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: "Public Contact Email",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(
-                  labelText: "Address",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(
-                  labelText: "Image URL 1",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: image2Controller,
-                decoration: const InputDecoration(
-                  labelText: "Image URL 2 (Optional)",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: mapUrlController,
-                decoration: InputDecoration(
-                  labelText: "Google Map URL (Optional)",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.open_in_new),
-                    tooltip: 'Open Google Maps to copy link',
-                    onPressed: () async {
-                      final Uri url = Uri.parse('https://maps.google.com');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // Update specific fields only
-              await FirebaseFirestore.instance
-                  .collection('shops')
-                  .doc(doc.id)
-                  .update({
-                    'shopName': nameController.text.trim(),
-                    'publicEmail': emailController.text.trim(),
-                    'location.address': addressController.text
-                        .trim(), // Dot notation to update nested field
-                    'images': [
-                      if (imageController.text.trim().isNotEmpty) imageController.text.trim(),
-                      if (image2Controller.text.trim().isNotEmpty) image2Controller.text.trim(),
-                    ],
-                    'mapUrl': mapUrlController.text.trim(),
-                  });
-              if (mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00bf63),
-            ),
-            child: const Text(
-              "SAVE CHANGES",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
+  void _navigateToEditScreen(BuildContext context, DocumentSnapshot doc) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SellerEditScreen(doc: doc),
       ),
     );
   }
@@ -282,7 +162,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                         backgroundColor: Colors.white,
                         child: IconButton(
                           icon: const Icon(Icons.edit, color: Colors.black),
-                          onPressed: () => _showEditShopDialog(context, doc),
+                          onPressed: () => _navigateToEditScreen(context, doc),
                         ),
                       ),
                     ),
