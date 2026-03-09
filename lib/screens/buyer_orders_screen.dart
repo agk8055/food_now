@@ -429,6 +429,89 @@ class _OrderCard extends StatelessWidget {
               child: Divider(height: 1, color: Colors.grey[100], thickness: 1),
             ),
 
+            // --- Cancellation Reason ---
+            if (status == 'cancelled' && data['cancelReason'] != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.1)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: Colors.redAccent,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "REASON FOR CANCELLATION",
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.redAccent,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            data['cancelReason'],
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[800],
+                              height: 1.4,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (status == 'cancelled')
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00bf63).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF00bf63).withOpacity(0.1),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.currency_rupee_rounded,
+                      color: Color(0xFF00bf63),
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      "REFUND INITIATED",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF00bf63),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // --- Items ---
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),

@@ -13,28 +13,12 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final User? _user = FirebaseAuth.instance.currentUser;
 
-  Future<void> _updateSetting(String key, bool value) async {
-    if (_user == null) return;
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
-        'notificationSettings': {key: value},
-      }, SetOptions(merge: true));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to update setting: $e')));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_user == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Notifications")),
-        body: const Center(child: Text("Please log in to view settings.")),
+        body: const Center(child: Text("Please log in to view notifications.")),
       );
     }
 
@@ -42,114 +26,121 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text(
-          "Notification Settings",
+          "Notifications",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
         ),
         backgroundColor: Colors.white,
-        elevation: 0.5,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user!.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              !snapshot.hasData) {
-            return const Center(child: CustomLoader());
-          }
+      body: _buildNotificationsList(),
+    );
+  }
 
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
+  Widget _buildNotificationsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: _user!.uid)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CustomLoader());
+        }
 
-          final userData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-          final settings =
-              userData['notificationSettings'] as Map<String, dynamic>? ?? {};
+        if (snapshot.hasError) {
+          return Center(child: Text("Error: ${snapshot.error}"));
+        }
 
-          // Default all toggleable notifications to true if not explicitly set to false
-          final bool favoriteAlerts = settings['favoriteAlerts'] ?? true;
-          final bool pickupReminders = settings['pickupReminders'] ?? true;
-          final bool promotions = settings['promotions'] ?? true;
+        final docs = snapshot.data?.docs ?? [];
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            children: [
-              _buildSectionTitle("Orders"),
-              _buildSettingTile(
-                title: "Order Updates",
-                subtitle:
-                    "Confirmations, cancellations, and pickup completion.",
-                value: true,
-                onChanged: null, // null makes it disabled
-                icon: Icons.receipt_long_rounded,
-                isMandatory: true,
-              ),
-              const SizedBox(height: 24),
-
-              _buildSectionTitle("Alerts & Reminders"),
-              _buildSettingTile(
-                title: "Favorite Shop Alerts",
-                subtitle:
-                    "Get notified when your favorite shops add new surplus food.",
-                value: favoriteAlerts,
-                onChanged: (val) => _updateSetting('favoriteAlerts', val),
-                icon: Icons.favorite_rounded,
-              ),
-              _buildSettingTile(
-                title: "Pickup Reminders",
-                subtitle: "Alerts when your reserved order is about to expire.",
-                value: pickupReminders,
-                onChanged: (val) => _updateSetting('pickupReminders', val),
-                icon: Icons.access_time_filled_rounded,
-              ),
-              const SizedBox(height: 24),
-
-              _buildSectionTitle("Offers"),
-              _buildSettingTile(
-                title: "Promotions & Announcements",
-                subtitle: "Special offers, discounts, and app updates.",
-                value: promotions,
-                onChanged: (val) => _updateSetting('promotions', val),
-                icon: Icons.local_offer_rounded,
-              ),
-            ],
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_none_rounded,
+                  size: 64,
+                  color: Colors.grey[300],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No notifications yet",
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           );
-        },
-      ),
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final Map<String, dynamic> data =
+                doc.data() as Map<String, dynamic>;
+            final bool isRead = data['isRead'] ?? false;
+            final String title = data['title'] ?? 'Notification';
+            final String body = data['body'] ?? '';
+            final Timestamp? timestamp = data['createdAt'] as Timestamp?;
+            final String timeStr = timestamp != null
+                ? _formatTimestamp(timestamp)
+                : 'Just now';
+
+            return _buildNotificationCard(
+              doc.id,
+              title,
+              body,
+              timeStr,
+              isRead,
+              data,
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: Colors.grey[500],
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
+  String _formatTimestamp(Timestamp timestamp) {
+    final now = DateTime.now();
+    final date = timestamp.toDate();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
-  Widget _buildSettingTile({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required Function(bool)? onChanged,
-    required IconData icon,
-    bool isMandatory = false,
-  }) {
+  Widget _buildNotificationCard(
+    String id,
+    String title,
+    String body,
+    String time,
+    bool isRead,
+    Map<String, dynamic> data,
+  ) {
+    final String? cancelReason = data['cancelReason'];
+    final String type = data['type'] ?? '';
+    final bool isCancellation =
+        type == 'order_cancelled' || title.toLowerCase().contains('cancelled');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isRead ? Colors.white : const Color(0xFFF0FDF4),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(
+          color: isRead ? Colors.grey.shade100 : const Color(0xFFDCFCE7),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -158,54 +149,72 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        activeColor: const Color(0xFF00bf63),
+      child: ListTile(
+        onTap: () {
+          FirebaseFirestore.instance.collection('notifications').doc(id).update(
+            {'isRead': true},
+          );
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isCancellation
+                ? Colors.redAccent.withOpacity(0.1)
+                : const Color(0xFF00bf63).withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isCancellation
+                ? Icons.cancel_rounded
+                : Icons.notifications_active_rounded,
+            color: isCancellation ? Colors.redAccent : const Color(0xFF00bf63),
+            size: 20,
+          ),
+        ),
         title: Row(
           children: [
-            Icon(
-              icon,
-              color: isMandatory ? Colors.grey : const Color(0xFF00bf63),
-              size: 20,
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                style: TextStyle(
+                  fontWeight: isRead ? FontWeight.w600 : FontWeight.w800,
+                  fontSize: 15,
+                  color: Colors.black87,
                 ),
               ),
             ),
+            Text(time, style: TextStyle(color: Colors.grey[400], fontSize: 11)),
           ],
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6.0, left: 32.0),
+          padding: const EdgeInsets.only(top: 4.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                subtitle,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                body,
+                style: TextStyle(
+                  color: isRead ? Colors.grey[600] : Colors.grey[800],
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
-              if (isMandatory)
+              if (cancelReason != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
-                    "Mandatory for core app functionality",
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
+                    "Reason: $cancelReason",
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
             ],
           ),
         ),
-        value: value,
-        onChanged: onChanged,
       ),
     );
   }

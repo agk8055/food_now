@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/user_service.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class SellerOrdersScreen extends StatefulWidget {
   const SellerOrdersScreen({super.key});
@@ -22,6 +23,143 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     if (_user != null) {
       _shopFuture = UserService().getShop(_user.uid);
     }
+  }
+
+  void _showCancelOrderDialog(
+    BuildContext context,
+    String orderId,
+    String buyerName,
+    String buyerId,
+    String shopName,
+  ) {
+    final TextEditingController reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Cancel Order",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Are you sure you want to cancel $buyerName's order? This action cannot be undone.",
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Reason for Cancellation",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: reasonController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: "e.g. Item out of stock",
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: Colors.redAccent,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return "Please enter a reason";
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "BACK",
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final String reason = reasonController.text.trim();
+                  try {
+                    // Update order status
+                    await FirebaseFirestore.instance
+                        .collection('orders')
+                        .doc(orderId)
+                        .update({
+                          'status': 'cancelled',
+                          'cancelReason': reason,
+                          'cancelledAt': FieldValue.serverTimestamp(),
+                        });
+
+                    if (context.mounted) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(context);
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text("Order Cancelled successfully."),
+                          backgroundColor: Color(0xFF00bf63),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(context);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text("Error cancelling order: $e"),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                "CANCEL ORDER",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showVerifyOTPDialog(
@@ -399,6 +537,87 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
 
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
 
+          if (status == 'cancelled' && data['cancelReason'] != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.15)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.orange,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "REASON FOR CANCELLATION",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.orange,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          data['cancelReason'],
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[800],
+                            height: 1.4,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          if (status == 'cancelled')
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00bf63).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF00bf63).withOpacity(0.1),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.currency_rupee_rounded,
+                    size: 14,
+                    color: Color(0xFF00bf63),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    "REFUND INITIATED",
+                    style: TextStyle(
+                      color: Color(0xFF00bf63),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Items
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -445,54 +664,201 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 bottom: Radius.circular(12),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    "Total: ₹$totalAmount",
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Total: ₹$totalAmount",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    if (status == 'pending')
+                      ElevatedButton.icon(
+                        onPressed: () => _showVerifyOTPDialog(
+                          context,
+                          orderId,
+                          otp,
+                          buyerName,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00bf63),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.verified_user_outlined,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        label: const Text(
+                          "VERIFY OTP",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                if (status == 'pending')
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        _showVerifyOTPDialog(context, orderId, otp, buyerName),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00bf63),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.verified_user_outlined,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    label: const Text(
-                      "VERIFY OTP",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+                if (status == 'pending' && data['createdAt'] != null) ...[
+                  const SizedBox(height: 8),
+                  CancellationTimer(
+                    createdAt: (data['createdAt'] as Timestamp).toDate(),
+                    onExpired: () {
+                      // Optionally refresh UI or state
+                    },
+                    onCancel: () => _showCancelOrderDialog(
+                      context,
+                      orderId,
+                      buyerName,
+                      data['buyerId'] ?? '',
+                      data['shopName'] ?? 'Seller',
                     ),
                   ),
+                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class CancellationTimer extends StatefulWidget {
+  final DateTime createdAt;
+  final VoidCallback onExpired;
+  final VoidCallback onCancel;
+
+  const CancellationTimer({
+    super.key,
+    required this.createdAt,
+    required this.onExpired,
+    required this.onCancel,
+  });
+
+  @override
+  State<CancellationTimer> createState() => _CancellationTimerState();
+}
+
+class _CancellationTimerState extends State<CancellationTimer> {
+  Timer? _timer;
+  late Duration _remainingTime;
+  bool _isExpired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateRemainingTime();
+    if (!_isExpired) {
+      _startTimer();
+    }
+  }
+
+  void _calculateRemainingTime() {
+    final expiryTime = widget.createdAt.add(const Duration(minutes: 5));
+    _remainingTime = expiryTime.difference(DateTime.now());
+    if (_remainingTime.isNegative) {
+      _remainingTime = Duration.zero;
+      _isExpired = true;
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _calculateRemainingTime();
+          if (_isExpired) {
+            timer.cancel();
+            widget.onExpired();
+          }
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isExpired) {
+      return const SizedBox(
+        width: double.infinity,
+        child: Text(
+          "cancellation expired",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
+    final minutes = _remainingTime.inMinutes.toString().padLeft(2, '0');
+    final seconds = (_remainingTime.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            icon: const Icon(Icons.cancel_outlined, size: 16),
+            label: const Text(
+              "CANCEL ORDER",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+          ),
+          child: Text(
+            "$minutes:$seconds",
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
