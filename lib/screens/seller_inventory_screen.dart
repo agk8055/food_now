@@ -143,7 +143,7 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     int quantity,
     String? imageUrl,
   ) {
-    bool _isItemExpired(String? dateStr, String? timeStr) {
+    bool isItemExpired(String? dateStr, String? timeStr) {
       if (dateStr == null || timeStr == null || dateStr.isEmpty || timeStr.isEmpty) return false;
       try {
         DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
@@ -166,7 +166,7 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
 
     Color statusColor = const Color(0xFF00bf63); // Default Green
     String statusText = "IN STOCK";
-    bool isExpired = _isItemExpired(item['expiryDate'], item['expiryTime']);
+    bool isExpired = isItemExpired(item['expiryDate'], item['expiryTime']);
 
     if (isExpired) {
       statusColor = Colors.redAccent;
@@ -414,7 +414,7 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
             const SizedBox(height: 16),
             if (_shopCategory != 'Supermarket') ...[
               DropdownButtonFormField<String>(
-                value: currentDietType,
+                initialValue: currentDietType,
                 items: const [
                   DropdownMenuItem(value: 'Veg', child: Text('Veg')),
                   DropdownMenuItem(value: 'Non-Veg', child: Text('Non-Veg')),

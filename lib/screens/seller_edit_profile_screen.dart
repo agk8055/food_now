@@ -15,8 +15,7 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
   late final TextEditingController nameController;
   late final TextEditingController addressController;
   late final TextEditingController emailController;
-  late final TextEditingController imageController;
-  late final TextEditingController image2Controller;
+  final List<TextEditingController> imageControllers = [];
   late final TextEditingController mapUrlController;
 
   bool _isSaving = false;
@@ -27,16 +26,20 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
     final data = widget.doc.data() as Map<String, dynamic>;
 
     nameController = TextEditingController(text: data['shopName']);
-    addressController = TextEditingController(text: data['location']?['address'] ?? '');
+    addressController = TextEditingController(
+      text: data['location']?['address'] ?? '',
+    );
     emailController = TextEditingController(text: data['publicEmail'] ?? '');
-    imageController = TextEditingController(
-      text: (data['images'] as List?)?.isNotEmpty == true ? (data['images'] as List).first : '',
-    );
-    image2Controller = TextEditingController(
-      text: (data['images'] as List?) != null && (data['images'] as List).length > 1
-          ? (data['images'] as List)[1]
-          : '',
-    );
+
+    final images = data['images'] as List?;
+    if (images != null && images.isNotEmpty) {
+      for (var url in images) {
+        imageControllers.add(TextEditingController(text: url.toString()));
+      }
+    } else {
+      imageControllers.add(TextEditingController());
+    }
+
     mapUrlController = TextEditingController(text: data['mapUrl'] ?? '');
   }
 
@@ -45,10 +48,24 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
     nameController.dispose();
     addressController.dispose();
     emailController.dispose();
-    imageController.dispose();
-    image2Controller.dispose();
+    for (var controller in imageControllers) {
+      controller.dispose();
+    }
     mapUrlController.dispose();
     super.dispose();
+  }
+
+  void _addImageField() {
+    setState(() {
+      imageControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeImageField(int index) {
+    setState(() {
+      imageControllers[index].dispose();
+      imageControllers.removeAt(index);
+    });
   }
 
   Future<void> _saveChanges() async {
@@ -59,21 +76,21 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
           .collection('shops')
           .doc(widget.doc.id)
           .update({
-        'shopName': nameController.text.trim(),
-        'publicEmail': emailController.text.trim(),
-        'location.address': addressController.text.trim(),
-        'images': [
-          if (imageController.text.trim().isNotEmpty) imageController.text.trim(),
-          if (image2Controller.text.trim().isNotEmpty) image2Controller.text.trim(),
-        ],
-        'mapUrl': mapUrlController.text.trim(),
-      });
+            'shopName': nameController.text.trim(),
+            'publicEmail': emailController.text.trim(),
+            'location.address': addressController.text.trim(),
+            'images': imageControllers
+                .map((c) => c.text.trim())
+                .where((text) => text.isNotEmpty)
+                .toList(),
+            'mapUrl': mapUrlController.text.trim(),
+          });
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -117,19 +134,48 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: imageController,
-              decoration: const InputDecoration(
-                labelText: "Image URL 1",
-                border: OutlineInputBorder(),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Shop Images",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: image2Controller,
-              decoration: const InputDecoration(
-                labelText: "Image URL 2 (Optional)",
-                border: OutlineInputBorder(),
+            const SizedBox(height: 8),
+            ...imageControllers.asMap().entries.map((entry) {
+              int idx = entry.key;
+              TextEditingController controller = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        decoration: InputDecoration(
+                          labelText: "Image URL ${idx + 1}",
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    if (imageControllers.length > 1)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _removeImageField(idx),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _addImageField,
+                icon: const Icon(Icons.add),
+                label: const Text("ADD IMAGE"),
               ),
             ),
             const SizedBox(height: 16),
@@ -144,7 +190,10 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
                   onPressed: () async {
                     final Uri url = Uri.parse('https://maps.google.com');
                     if (await canLaunchUrl(url)) {
-                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
                     }
                   },
                 ),
@@ -163,11 +212,17 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
                     ? const SizedBox(
                         height: 24,
                         width: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Text(
                         "SAVE CHANGES",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ),

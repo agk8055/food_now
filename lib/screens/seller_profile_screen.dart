@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/screens/login_screen.dart';
-import 'package:food_now/screens/seller_edit_screen.dart';
+import 'package:food_now/screens/seller_edit_profile_screen.dart';
 import '../widgets/custom_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -247,11 +247,11 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                           ),
                           title: const Text(
                             "Google Map",
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                           subtitle: const Text(
                             "Tap to open in Google Maps",
-                            style: const TextStyle(fontSize: 16, color: Colors.blueAccent),
+                            style: TextStyle(fontSize: 16, color: Colors.blueAccent),
                           ),
                           onTap: () async {
                             final Uri url = Uri.parse(mapUrl);

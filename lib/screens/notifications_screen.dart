@@ -17,7 +17,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (_user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
+      await FirebaseFirestore.instance.collection('users').doc(_user.uid).set({
         'notificationSettings': {key: value},
       }, SetOptions(merge: true));
     } catch (e) {
@@ -52,7 +52,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .doc(_user!.uid)
+            .doc(_user.uid)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
@@ -160,7 +160,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       child: SwitchListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        activeColor: const Color(0xFF00bf63),
+        activeThumbColor: const Color(0xFF00bf63),
         title: Row(
           children: [
             Icon(

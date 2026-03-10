@@ -57,7 +57,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
       final List<DocumentSnapshot> validDocs = [];
 
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final status = data['status'];
 
         if (status == 'cancelled') {

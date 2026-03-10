@@ -183,7 +183,7 @@ class _SellerAddItemScreenState extends State<SellerAddItemScreen> {
 
               if (_shopCategory != 'Supermarket') ...[
                 DropdownButtonFormField<String>(
-                  value: _dietType,
+                  initialValue: _dietType,
                   items: const [
                     DropdownMenuItem(value: 'Veg', child: Text('Veg')),
                     DropdownMenuItem(value: 'Non-Veg', child: Text('Non-Veg')),

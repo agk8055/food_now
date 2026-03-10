@@ -131,13 +131,16 @@ class _FoodScreenState extends State<FoodScreen> {
 
                   // Apply filter
                   if (_selectedCategory == 'Restaurant' &&
-                      category != 'Restaurant')
+                      category != 'Restaurant') {
                     return false;
+                  }
                   if (_selectedCategory == 'Bakery & Cafe' &&
-                      category != 'Bakery')
+                      category != 'Bakery') {
                     return false;
-                  if (_selectedCategory == 'Catering' && category != 'Catering')
+                  }
+                  if (_selectedCategory == 'Catering' && category != 'Catering') {
                     return false;
+                  }
 
                   // If 'All', keeping everything EXCEPT Supermarket (already handled)
                   return true;

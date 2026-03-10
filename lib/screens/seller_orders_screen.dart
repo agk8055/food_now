@@ -36,127 +36,194 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     final TextEditingController reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
+    final List<String> predefinedReasons = [
+      "Stock mistake",
+      "Food expired earlier",
+      "Item damaged or spoiled",
+      "Shop emergency",
+      "Other",
+    ];
+
+    String? selectedReason;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            "Cancel Order",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Are you sure you want to cancel $buyerName's order? This action cannot be undone.",
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Reason for Cancellation",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: reasonController,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: "e.g. Item out of stock",
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: Colors.redAccent,
-                        width: 2,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "Cancel Order",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Why are you cancelling $buyerName's order?",
+                        style: TextStyle(color: Colors.grey[700], fontSize: 13),
                       ),
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: predefinedReasons.map((reason) {
+                          final isSelected = selectedReason == reason;
+                          return ChoiceChip(
+                            label: Text(
+                              reason,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black87,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: Colors.redAccent,
+                            backgroundColor: Colors.grey[100],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: isSelected
+                                    ? Colors.redAccent
+                                    : Colors.grey[300]!,
+                              ),
+                            ),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  selectedReason = reason;
+                                  if (reason != "Other") {
+                                    reasonController.text = reason;
+                                  } else {
+                                    reasonController.clear();
+                                  }
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Reason Details",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: reasonController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: "Enter details here...",
+                          hintStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 13,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: Colors.redAccent,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return "Please provide a reason";
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return "Please enter a reason";
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    "BACK",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final String reason = reasonController.text.trim();
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('orders')
+                            .doc(orderId)
+                            .update({
+                              'status': 'cancelled',
+                              'cancelReason': reason,
+                              'cancelledAt': FieldValue.serverTimestamp(),
+                            });
+
+                        if (context.mounted) {
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text("Order Cancelled successfully."),
+                              backgroundColor: Color(0xFF00bf63),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text("Error cancelling order: $e"),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
                     }
-                    return null;
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    "CANCEL ORDER",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "BACK",
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final String reason = reasonController.text.trim();
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('orders')
-                        .doc(orderId)
-                        .update({
-                          'status': 'cancelled',
-                          'cancelReason': reason,
-                          'cancelledAt': FieldValue.serverTimestamp(),
-                        });
-
-                    if (context.mounted) {
-                      final messenger = ScaffoldMessenger.of(context);
-                      Navigator.pop(context);
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text("Order Cancelled successfully."),
-                          backgroundColor: Color(0xFF00bf63),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      final messenger = ScaffoldMessenger.of(context);
-                      Navigator.pop(context);
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text("Error cancelling order: $e"),
-                          backgroundColor: Colors.red,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                "CANCEL ORDER",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -993,18 +1060,7 @@ class _CancellationTimerState extends State<CancellationTimer> {
   @override
   Widget build(BuildContext context) {
     if (_isExpired) {
-      return const SizedBox(
-        width: double.infinity,
-        child: Text(
-          "cancellation expired",
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final minutes = _remainingTime.inMinutes.toString().padLeft(2, '0');

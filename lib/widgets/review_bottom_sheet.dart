@@ -8,12 +8,12 @@ class ReviewBottomSheet extends StatefulWidget {
   final String buyerId;
 
   const ReviewBottomSheet({
-    Key? key,
+    super.key,
     required this.orderId,
     required this.shopId,
     required this.shopName,
     required this.buyerId,
-  }) : super(key: key);
+  });
 
   @override
   State<ReviewBottomSheet> createState() => _ReviewBottomSheetState();
