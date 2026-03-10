@@ -136,35 +136,51 @@ class _ShopCardState extends State<ShopCard>
               borderRadius: BorderRadius.circular(20),
               child: Stack(
                 children: [
-                  // Background image with gradient overlay
-                  if (images != null && images.isNotEmpty)
-                    Image.network(
-                      images.first,
-                      height: 220,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          height: 220,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 220,
-                          color: Colors.grey[200],
-                          child: Icon(
-                            widget.defaultIcon,
-                            size: 80,
-                            color: Colors.grey[400],
-                          ),
-                        );
-                      },
+                  // Background image
+                  Hero(
+                    tag: 'shop_image_${widget.shopId}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: (images != null && images.isNotEmpty)
+                          ? Image.network(
+                              images.first,
+                              height: 220,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  height: 220,
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 220,
+                                  color: Colors.grey[200],
+                                  child: Icon(
+                                    widget.defaultIcon,
+                                    size: 80,
+                                    color: Colors.grey[400],
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              height: 220,
+                              width: double.infinity,
+                              color: Colors.grey[200],
+                              child: Icon(
+                                widget.defaultIcon,
+                                size: 80,
+                                color: Colors.grey[400],
+                              ),
+                            ),
                     ),
+                  ),
                   // Gradient overlay for text readability
                   Container(
                     height: 220,
@@ -329,14 +345,6 @@ class _ShopCardState extends State<ShopCard>
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  // Hero image for transition
-                  Positioned.fill(
-                    child: Hero(
-                      tag: 'shop_image_${widget.shopId}',
-                      child:
-                          Container(), // Placeholder, actual image will be used in ShopMenuScreen
                     ),
                   ),
                 ],
@@ -581,15 +589,15 @@ class _ShopCardState extends State<ShopCard>
   void _navigateToMenu() {
     Navigator.push(
       context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => ShopMenuScreen(
+      MaterialPageRoute(
+        builder: (context) => ShopMenuScreen(
           shopId: widget.shopId,
           shopName: widget.data['shopName'],
           shopData: widget.data,
+          heroTag: widget.isCompact
+              ? 'shop_image_${widget.shopId}_compact'
+              : 'shop_image_${widget.shopId}',
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
       ),
     );
   }

@@ -14,17 +14,15 @@ class ShopMenuScreen extends StatefulWidget {
   final String shopId;
 
   final String shopName;
-
   final Map<String, dynamic> shopData;
+  final String? heroTag;
 
   const ShopMenuScreen({
     super.key,
-
     required this.shopId,
-
     required this.shopName,
-
     this.shopData = const {},
+    this.heroTag,
   });
 
   @override
@@ -134,10 +132,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     setState(() {
       if (_cart.containsKey(id)) {
         int newQty = (_cart[id]!['cartQuantity'] as int) + change;
-        
+
         if (newQty > stock && change > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Only $stock items left in stock for ${item['name']}!')),
+            SnackBar(
+              content: Text(
+                'Only $stock items left in stock for ${item['name']}!',
+              ),
+            ),
           );
           return;
         }
@@ -154,7 +156,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
           );
           return;
         }
-        
+
         _cart[id] = {
           'itemId': id,
 
@@ -178,7 +180,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     try {
       List<String> itemsOutStock = [];
       for (var cartItem in _cart.values) {
-        final doc = await FirebaseFirestore.instance.collection('food_items').doc(cartItem['itemId']).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('food_items')
+            .doc(cartItem['itemId'])
+            .get();
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
           final int stock = data['quantity'] ?? 0;
@@ -186,7 +191,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
             itemsOutStock.add("${cartItem['name']} (Only $stock left)");
           }
         } else {
-	        itemsOutStock.add("${cartItem['name']} (Item no longer available)");
+          itemsOutStock.add("${cartItem['name']} (Item no longer available)");
         }
       }
 
@@ -198,11 +203,16 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: const Text("Not Enough Stock"),
-              content: Text("The following items do not have enough stock:\n\n${itemsOutStock.join('\n')}"),
+              content: Text(
+                "The following items do not have enough stock:\n\n${itemsOutStock.join('\n')}",
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("OK", style: TextStyle(color: Color(0xFF00bf63))),
+                  child: const Text(
+                    "OK",
+                    style: TextStyle(color: Color(0xFF00bf63)),
+                  ),
                 ),
               ],
             ),
@@ -227,9 +237,9 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error validating stock: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error validating stock: $e')));
       }
     }
   }
@@ -252,7 +262,11 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
   }
 
   bool _isItemExpired(String? dateStr, String? timeStr) {
-    if (dateStr == null || timeStr == null || dateStr.isEmpty || timeStr.isEmpty) return false;
+    if (dateStr == null ||
+        timeStr == null ||
+        dateStr.isEmpty ||
+        timeStr.isEmpty)
+      return false;
     try {
       DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
       DateTime time;
@@ -265,7 +279,13 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
           time = DateFormat('HH:mm').parse(timeStr);
         }
       }
-      DateTime itemExpiry = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      DateTime itemExpiry = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
       return DateTime.now().isAfter(itemExpiry);
     } catch (e) {
       return false;
@@ -329,29 +349,32 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         Stack(
           children: [
             // Image Slideshow with rounded bottom
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(32),
-              ),
+            Hero(
+              tag: widget.heroTag ?? 'shop_image_${widget.shopId}',
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(32),
+                ),
 
-              child: SizedBox(
-                height: 340,
+                child: SizedBox(
+                  height: 340,
 
-                width: double.infinity,
+                  width: double.infinity,
 
-                child: (images != null && images.isNotEmpty)
-                    ? _ShopImageSlideshow(images: images.cast<String>())
-                    : Container(
-                        color: Colors.grey[100],
+                  child: (images != null && images.isNotEmpty)
+                      ? _ShopImageSlideshow(images: images.cast<String>())
+                      : Container(
+                          color: Colors.grey[100],
 
-                        child: Icon(
-                          Icons.restaurant,
+                          child: Icon(
+                            Icons.restaurant,
 
-                          size: 80,
+                            size: 80,
 
-                          color: Colors.grey[300],
+                            color: Colors.grey[300],
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
 
@@ -565,67 +588,80 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
 
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-
-                decoration: BoxDecoration(
-                  color: primaryGreen.withOpacity(0.1),
-
-                  shape: BoxShape.circle,
-                ),
-
-                child: Icon(
-                  Icons.location_on_rounded,
-
-                  size: 20,
-
-                  color: primaryGreen,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  address,
-
-                  style: TextStyle(
-                    color: Colors.grey[800],
-
-                    fontSize: 14,
-
-                    height: 1.5,
-
-                    fontWeight: FontWeight.w500,
-                  ),
+          child: GestureDetector(
+            onTap: mapUrl.isNotEmpty
+                ? () async {
+                    final Uri url = Uri.parse(mapUrl);
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  }
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1,
                 ),
               ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
 
-              if (mapUrl.isNotEmpty) ...[
-                const SizedBox(width: 8),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
 
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    shape: BoxShape.circle,
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.1),
+
+                      shape: BoxShape.circle,
+                    ),
+
+                    child: Icon(
+                      Icons.location_on_rounded,
+
+                      size: 20,
+
+                      color: primaryGreen,
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.map_rounded, color: Colors.blue),
-                    onPressed: () async {
-                      final Uri url = Uri.parse(mapUrl);
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                    tooltip: 'View on Google Maps',
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Text(
+                      address,
+
+                      style: TextStyle(
+                        color: Colors.grey[800],
+
+                        fontSize: 14,
+
+                        height: 1.5,
+
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ],
+
+                  if (mapUrl.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
 
@@ -746,6 +782,12 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
         }
 
         if (totalReviews > 0) averageRating /= totalReviews;
+
+        final reviewDocsWithComments = docs.where((doc) {
+          final reviewData = doc.data() as Map<String, dynamic>;
+          final String comment = reviewData['comment'] ?? "";
+          return comment.trim().isNotEmpty;
+        }).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -886,163 +928,169 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            if (reviewDocsWithComments.isNotEmpty) ...[
+              const SizedBox(height: 16),
 
-            // Review List
-            ListView.separated(
-              shrinkWrap: true,
+              // Review List
+              ListView.separated(
+                shrinkWrap: true,
 
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
 
-              physics: const NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
 
-              itemCount: docs.length,
+                itemCount: reviewDocsWithComments.length,
 
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
 
-              itemBuilder: (context, index) {
-                final review = docs[index].data() as Map<String, dynamic>;
+                itemBuilder: (context, index) {
+                  final review =
+                      reviewDocsWithComments[index].data()
+                          as Map<String, dynamic>;
 
-                final int rating = (review['rating'] ?? 0).toInt();
+                  final int rating = (review['rating'] ?? 0).toInt();
 
-                final String comment = review['comment'] ?? "";
+                  final String comment = review['comment'] ?? "";
 
-                final Timestamp? createdAt = review['createdAt'] as Timestamp?;
+                  final Timestamp? createdAt =
+                      review['createdAt'] as Timestamp?;
 
-                String dateStr = "";
+                  String dateStr = "";
 
-                if (createdAt != null) {
-                  final date = createdAt.toDate();
+                  if (createdAt != null) {
+                    final date = createdAt.toDate();
 
-                  dateStr = "${date.day}/${date.month}/${date.year}";
-                }
+                    dateStr = "${date.day}/${date.month}/${date.year}";
+                  }
 
-                return Container(
-                  padding: const EdgeInsets.all(20),
+                  return Container(
+                    padding: const EdgeInsets.all(20),
 
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
 
-                    borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20),
 
-                    border: Border.all(color: Colors.grey.shade100),
+                      border: Border.all(color: Colors.grey.shade100),
 
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
 
-                        blurRadius: 10,
+                          blurRadius: 10,
 
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-
-                                  vertical: 6,
-                                ),
-
-                                decoration: BoxDecoration(
-                                  color: rating >= 4
-                                      ? primaryGreen
-                                      : (rating >= 3
-                                            ? Colors.amber
-                                            : Colors.redAccent),
-
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      rating.toString(),
-
-                                      style: const TextStyle(
-                                        color: Colors.white,
-
-                                        fontWeight: FontWeight.bold,
-
-                                        fontSize: 13,
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 4),
-
-                                    const Icon(
-                                      Icons.star_rounded,
-
-                                      color: Colors.white,
-
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              const Text(
-                                "Verified Buyer",
-
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-
-                                  fontSize: 14,
-
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          if (dateStr.isNotEmpty)
-                            Text(
-                              dateStr,
-
-                              style: TextStyle(
-                                color: Colors.grey[500],
-
-                                fontSize: 12,
-
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      if (comment.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-
-                        Text(
-                          comment,
-
-                          style: const TextStyle(
-                            fontSize: 14,
-
-                            color: Colors.black87,
-
-                            height: 1.5,
-                          ),
+                          offset: const Offset(0, 4),
                         ),
                       ],
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+
+                                    vertical: 6,
+                                  ),
+
+                                  decoration: BoxDecoration(
+                                    color: rating >= 4
+                                        ? primaryGreen
+                                        : (rating >= 3
+                                              ? Colors.amber
+                                              : Colors.redAccent),
+
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        rating.toString(),
+
+                                        style: const TextStyle(
+                                          color: Colors.white,
+
+                                          fontWeight: FontWeight.bold,
+
+                                          fontSize: 13,
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 4),
+
+                                      const Icon(
+                                        Icons.star_rounded,
+
+                                        color: Colors.white,
+
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                const Text(
+                                  "Verified Buyer",
+
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+
+                                    fontSize: 14,
+
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            if (dateStr.isNotEmpty)
+                              Text(
+                                dateStr,
+
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+
+                                  fontSize: 12,
+
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        if (comment.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+
+                          Text(
+                            comment,
+
+                            style: const TextStyle(
+                              fontSize: 14,
+
+                              color: Colors.black87,
+
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         );
       },
@@ -1070,14 +1118,20 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
               final docs = allDocs.where((doc) {
                 final item = doc.data() as Map<String, dynamic>;
                 final int quantity = item['quantity'] ?? 0;
-                
+
                 bool matchesDiet = true;
-                if (_resolvedShopData['category'] != 'Supermarket' && _dietFilter != 'All') {
+                if (_resolvedShopData['category'] != 'Supermarket' &&
+                    _dietFilter != 'All') {
                   final itemDiet = item['dietType'] ?? 'Veg';
                   matchesDiet = itemDiet == _dietFilter;
                 }
-                
-                return !_isItemExpired(item['expiryDate'], item['expiryTime']) && quantity > 0 && matchesDiet;
+
+                return !_isItemExpired(
+                      item['expiryDate'],
+                      item['expiryTime'],
+                    ) &&
+                    quantity > 0 &&
+                    matchesDiet;
               }).toList();
 
               if (docs.isEmpty) {
@@ -1105,7 +1159,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                   if (_resolvedShopData['category'] != 'Supermarket')
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
@@ -1114,7 +1171,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                               Color typeColor = Colors.black87;
                               if (type == 'Veg') typeColor = Colors.green;
                               if (type == 'Non-Veg') typeColor = Colors.red;
-                              if (type == 'All') typeColor = const Color(0xFF00bf63);
+                              if (type == 'All')
+                                typeColor = const Color(0xFF00bf63);
 
                               return GestureDetector(
                                 onTap: () {
@@ -1123,21 +1181,32 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 300),
                                   margin: const EdgeInsets.only(right: 12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? typeColor.withOpacity(0.15) : Colors.white,
+                                    color: isSelected
+                                        ? typeColor.withOpacity(0.15)
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
-                                      color: isSelected ? typeColor : Colors.grey.withOpacity(0.2),
+                                      color: isSelected
+                                          ? typeColor
+                                          : Colors.grey.withOpacity(0.2),
                                       width: isSelected ? 1.5 : 1,
                                     ),
-                                    boxShadow: isSelected ? [
-                                      BoxShadow(
-                                        color: typeColor.withOpacity(0.15),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      )
-                                    ] : [],
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: typeColor.withOpacity(
+                                                0.15,
+                                              ),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : [],
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -1147,9 +1216,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                           width: 12,
                                           height: 12,
                                           decoration: BoxDecoration(
-                                            color: isSelected ? typeColor : Colors.transparent,
+                                            color: isSelected
+                                                ? typeColor
+                                                : Colors.transparent,
                                             shape: BoxShape.circle,
-                                            border: Border.all(color: typeColor, width: 2),
+                                            border: Border.all(
+                                              color: typeColor,
+                                              width: 2,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -1157,8 +1231,12 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                       Text(
                                         type,
                                         style: TextStyle(
-                                          color: isSelected ? typeColor : Colors.grey[700],
-                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                          color: isSelected
+                                              ? typeColor
+                                              : Colors.grey[700],
+                                          fontWeight: isSelected
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -1214,24 +1292,38 @@ class _ShopMenuScreenState extends State<ShopMenuScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (_resolvedShopData['category'] != 'Supermarket')
+                                    if (_resolvedShopData['category'] !=
+                                        'Supermarket')
                                       Padding(
-                                        padding: const EdgeInsets.only(bottom: 4),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 4,
+                                        ),
                                         child: Container(
                                           width: 14,
                                           height: 14,
                                           decoration: BoxDecoration(
                                             border: Border.all(
-                                              color: (item['dietType'] ?? 'Veg') == 'Veg' ? Colors.green : Colors.red,
+                                              color:
+                                                  (item['dietType'] ?? 'Veg') ==
+                                                      'Veg'
+                                                  ? Colors.green
+                                                  : Colors.red,
                                             ),
-                                            borderRadius: BorderRadius.circular(2),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
                                           ),
                                           child: Center(
                                             child: Container(
                                               width: 6,
                                               height: 6,
                                               decoration: BoxDecoration(
-                                                color: (item['dietType'] ?? 'Veg') == 'Veg' ? Colors.green : Colors.red,
+                                                color:
+                                                    (item['dietType'] ??
+                                                            'Veg') ==
+                                                        'Veg'
+                                                    ? Colors.green
+                                                    : Colors.red,
                                                 shape: BoxShape.circle,
                                               ),
                                             ),
@@ -1650,12 +1742,15 @@ class _ShopImageSlideshowState extends State<_ShopImageSlideshow> {
 
       child: Stack(
         alignment: Alignment.bottomCenter,
+        fit: StackFit.expand,
         children: [
+          Image.network(widget.images.first, fit: BoxFit.cover),
           PageView.builder(
             controller: _pageController,
             onPageChanged: (index) => setState(() => _currentPage = index),
             itemCount: widget.images.length,
             itemBuilder: (context, index) {
+              if (index == 0) return const SizedBox.shrink();
               return Image.network(widget.images[index], fit: BoxFit.cover);
             },
           ),

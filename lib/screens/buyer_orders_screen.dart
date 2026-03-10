@@ -308,11 +308,14 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                  backgroundColor: Colors.white,
+                child: RepaintBoundary(
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 200.0,
+                    backgroundColor: Colors.white,
+                    semanticsLabel: 'Order QR Code',
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

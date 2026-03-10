@@ -13,7 +13,7 @@ class _AppColors {
   static const Color textPrimary = Color(0xFF111827);
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color border = Color(0xFFE5E7EB);
-  static const Color background = Color(0xFFF7F8FA); 
+  static const Color background = Color(0xFFF7F8FA);
 }
 
 class FloatingActiveOrders extends StatefulWidget {
@@ -54,49 +54,54 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
         .where('status', whereIn: ['pending', 'cancelled'])
         .snapshots()
         .listen((snapshot) {
-      final List<DocumentSnapshot> validDocs = [];
+          final List<DocumentSnapshot> validDocs = [];
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final status = data['status'];
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final status = data['status'];
 
-        if (status == 'cancelled') {
-          if (data['dismissedByBuyer'] == true) continue;
-          if (_dismissedOrders.contains(doc.id)) continue;
+            if (status == 'cancelled') {
+              if (data['dismissedByBuyer'] == true) continue;
+              if (_dismissedOrders.contains(doc.id)) continue;
 
-          final createdAt = data['createdAt'] as Timestamp?;
-          if (createdAt != null) {
-            if (DateTime.now().difference(createdAt.toDate()).inHours > 24) {
-              continue;
+              final createdAt = data['createdAt'] as Timestamp?;
+              if (createdAt != null) {
+                if (DateTime.now().difference(createdAt.toDate()).inHours >
+                    24) {
+                  continue;
+                }
+              }
             }
+            validDocs.add(doc);
           }
-        }
-        validDocs.add(doc);
-      }
 
-      validDocs.sort((a, b) {
-        final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-        final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-        if (aTime == null || bTime == null) return 0;
-        return bTime.compareTo(aTime);
-      });
+          validDocs.sort((a, b) {
+            final aTime =
+                (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            final bTime =
+                (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
 
-      if (mounted) {
-        setState(() {
-          _pendingOrders = validDocs;
-          if (_currentOrderPage >= _pendingOrders.length && _pendingOrders.isNotEmpty) {
-            _currentOrderPage = _pendingOrders.length - 1;
+          if (mounted) {
+            setState(() {
+              _pendingOrders = validDocs;
+              if (_currentOrderPage >= _pendingOrders.length &&
+                  _pendingOrders.isNotEmpty) {
+                _currentOrderPage = _pendingOrders.length - 1;
+              }
+            });
           }
         });
-      }
-    });
   }
 
   Future<void> _launchNavigation(Map<String, dynamic> orderData) async {
     double? lat;
     double? lng;
 
-    if (orderData.containsKey('shopLocation') && orderData['shopLocation'] != null) {
+    if (orderData.containsKey('shopLocation') &&
+        orderData['shopLocation'] != null) {
       final GeoPoint point = orderData['shopLocation'];
       lat = point.latitude;
       lng = point.longitude;
@@ -108,7 +113,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
             .get();
         if (shopDoc.exists) {
           final shopData = shopDoc.data()!;
-          if (shopData.containsKey('location') && shopData['location'] != null) {
+          if (shopData.containsKey('location') &&
+              shopData['location'] != null) {
             final GeoPoint point = shopData['location']['geopoint'];
             lat = point.latitude;
             lng = point.longitude;
@@ -133,9 +139,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open maps')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open maps')));
       }
     }
   }
@@ -168,10 +174,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
               Text(
                 "Scan this QR code to confirm pickup",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
               ),
               const SizedBox(height: 24),
               Container(
@@ -187,11 +190,14 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                     ),
                   ],
                 ),
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                  backgroundColor: Colors.white,
+                child: RepaintBoundary(
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 200.0,
+                    backgroundColor: Colors.white,
+                    semanticsLabel: 'Order QR Code',
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -223,7 +229,11 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
     );
   }
 
-  Widget _buildSingleOrderCard(String orderId, Map<String, dynamic> data, {required bool isSingle}) {
+  Widget _buildSingleOrderCard(
+    String orderId,
+    Map<String, dynamic> data, {
+    required bool isSingle,
+  }) {
     final shopName = data['shopName'] ?? 'Your Order';
     final status = data['status'] ?? 'pending';
     final isCancelled = status == 'cancelled';
@@ -264,13 +274,17 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
               height: 42,
               width: 42,
               decoration: BoxDecoration(
-                color: isCancelled ? Colors.red.shade50 : _AppColors.primaryLight,
+                color: isCancelled
+                    ? Colors.red.shade50
+                    : _AppColors.primaryLight,
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Icon(
                   // Changed from cancel_outlined to info_outline_rounded
-                  isCancelled ? Icons.info_outline_rounded : Icons.storefront_rounded,
+                  isCancelled
+                      ? Icons.info_outline_rounded
+                      : Icons.storefront_rounded,
                   color: isCancelled ? Colors.red.shade400 : _AppColors.primary,
                   size: 20,
                 ),
@@ -292,7 +306,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: isCancelled ? Colors.red.shade900 : _AppColors.textPrimary,
+                            color: isCancelled
+                                ? Colors.red.shade900
+                                : _AppColors.textPrimary,
                             letterSpacing: -0.3,
                           ),
                           maxLines: 1,
@@ -302,11 +318,14 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                       if (isCancelled) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.red.shade100)
+                            border: Border.all(color: Colors.red.shade100),
                           ),
                           child: Text(
                             "CANCELLED",
@@ -318,12 +337,12 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                             ),
                           ),
                         ),
-                      ]
+                      ],
                     ],
                   ),
-                  
+
                   const SizedBox(height: 4),
-                  
+
                   if (isCancelled)
                     Text(
                       cancelReason,
@@ -340,7 +359,10 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _launchNavigation(data),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(10),
@@ -348,7 +370,11 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.near_me_rounded, size: 14, color: Colors.blue.shade600),
+                            Icon(
+                              Icons.near_me_rounded,
+                              size: 14,
+                              color: Colors.blue.shade600,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               "Get Directions",
@@ -375,7 +401,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                   setState(() {
                     _dismissedOrders.add(orderId);
                     _pendingOrders.removeWhere((doc) => doc.id == orderId);
-                    if (_currentOrderPage >= _pendingOrders.length && _pendingOrders.isNotEmpty) {
+                    if (_currentOrderPage >= _pendingOrders.length &&
+                        _pendingOrders.isNotEmpty) {
                       _currentOrderPage = _pendingOrders.length - 1;
                     }
                   });
@@ -394,9 +421,15 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                   decoration: BoxDecoration(
                     color: Colors.red.shade50, // Added red tint background
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.red.shade200), // Red border
+                    border: Border.all(
+                      color: Colors.red.shade200,
+                    ), // Red border
                   ),
-                  child: Icon(Icons.close_rounded, size: 16, color: Colors.red.shade600),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Colors.red.shade600,
+                  ),
                 ),
               )
             else
@@ -405,17 +438,26 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                 onTap: () => _showQRCode(context, orderId, otp),
                 child: Container(
                   margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _AppColors.primary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _AppColors.primary.withOpacity(0.15)),
+                    border: Border.all(
+                      color: _AppColors.primary.withOpacity(0.15),
+                    ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.qr_code_2_rounded, color: _AppColors.primary, size: 20),
+                      Icon(
+                        Icons.qr_code_2_rounded,
+                        color: _AppColors.primary,
+                        size: 20,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         "QR",
@@ -444,19 +486,20 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
       duration: const Duration(milliseconds: 300),
       transitionBuilder: (child, animation) {
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          )),
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
           child: child,
         );
       },
       key: ValueKey(_pendingOrders.length),
       child: _pendingOrders.length == 1
-          ? _buildSingleOrderCard(_pendingOrders.first.id, _pendingOrders.first.data() as Map<String, dynamic>, isSingle: true)
+          ? _buildSingleOrderCard(
+              _pendingOrders.first.id,
+              _pendingOrders.first.data() as Map<String, dynamic>,
+              isSingle: true,
+            )
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -470,13 +513,18 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                     itemCount: _pendingOrders.length,
                     itemBuilder: (context, index) {
                       final orderId = _pendingOrders[index].id;
-                      final orderData = _pendingOrders[index].data() as Map<String, dynamic>;
-                      return _buildSingleOrderCard(orderId, orderData, isSingle: false);
+                      final orderData =
+                          _pendingOrders[index].data() as Map<String, dynamic>;
+                      return _buildSingleOrderCard(
+                        orderId,
+                        orderData,
+                        isSingle: false,
+                      );
                     },
                   ),
                 ),
                 const SizedBox(height: 4),
-                
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_pendingOrders.length, (index) {
@@ -488,7 +536,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                       width: isActive ? 16 : 5,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: isActive ? _AppColors.primary : Colors.grey.shade300,
+                        color: isActive
+                            ? _AppColors.primary
+                            : Colors.grey.shade300,
                         borderRadius: BorderRadius.circular(5),
                       ),
                     );

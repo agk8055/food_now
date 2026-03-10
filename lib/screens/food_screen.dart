@@ -15,23 +15,59 @@ class FoodScreen extends StatefulWidget {
   State<FoodScreen> createState() => _FoodScreenState();
 }
 
-class _FoodScreenState extends State<FoodScreen> {
+class _FoodScreenState extends State<FoodScreen>
+    with SingleTickerProviderStateMixin {
   GeoPoint? _userLocation;
   bool _isLoadingLocation = true;
   late String _selectedCategory;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
-  final List<String> _categories = [
-    'All',
-    'Restaurant',
-    'Bakery & Cafe',
-    'Catering',
+  // Category metadata: label, icon
+  final List<Map<String, dynamic>> _categoryData = [
+    {'label': 'All', 'icon': Icons.apps_rounded},
+    {'label': 'Restaurant', 'icon': Icons.restaurant_rounded},
+    {'label': 'Bakery & Cafe', 'icon': Icons.coffee_rounded},
+    {'label': 'Catering', 'icon': Icons.lunch_dining_rounded},
   ];
+
+  List<String> get _categories =>
+      _categoryData.map((c) => c['label'] as String).toList();
+
+  static const _primaryGreen = Color(0xFF00bf63);
+  static const _bgColor = Color(0xFFF6F8FA);
+  static const _cardBg = Colors.white;
+  static const _textDark = Color(0xFF1A1D23);
+  static const _textMuted = Color(0xFF8A93A2);
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'All';
     _fetchUserLocation();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUserLocation() async {
@@ -50,12 +86,12 @@ class _FoodScreenState extends State<FoodScreen> {
               _userLocation = location['geopoint'] as GeoPoint;
               _isLoadingLocation = false;
             });
+            _animationController.forward();
             return;
           }
         }
       }
 
-      // If no valid auth user or location not found in Firestore, try SharedPreferences
       if (_userLocation == null) {
         final prefs = await SharedPreferences.getInstance();
         final double? lat = prefs.getDouble('cached_geopoint_lat');
@@ -66,6 +102,7 @@ class _FoodScreenState extends State<FoodScreen> {
             _userLocation = GeoPoint(lat, lon);
             _isLoadingLocation = false;
           });
+          _animationController.forward();
           return;
         }
       }
@@ -77,225 +114,420 @@ class _FoodScreenState extends State<FoodScreen> {
       setState(() {
         _isLoadingLocation = false;
       });
+      _animationController.forward();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    String appBarTitle = _selectedCategory == 'All'
-        ? 'Food'
-        : _selectedCategory;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: Text(
-          appBarTitle,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            color: Colors.black87,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
+    return Material(
+      color: _bgColor,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        child: _isLoadingLocation
+            ? const Center(child: CustomLoader())
+            : _buildContent(),
       ),
-      body: _isLoadingLocation
-          ? const Center(child: CustomLoader())
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('shops')
-                  .where('verificationStatus', isEqualTo: 'approved')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CustomLoader());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("Error: ${snapshot.error}"));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text("No restaurants found nearby."),
-                  );
-                }
+    );
+  }
 
-                List<QueryDocumentSnapshot> shops = snapshot.data!.docs.where((
-                  doc,
-                ) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final category = data['category'] ?? 'Other';
+  Widget _buildContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('shops')
+          .where('verificationStatus', isEqualTo: 'approved')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CustomLoader());
+        }
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState();
+        }
 
-                  // Hide Supermarkets
-                  if (category == 'Supermarket') return false;
+        List<QueryDocumentSnapshot> shops = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final category = data['category'] ?? 'Other';
 
-                  // Apply filter
-                  if (_selectedCategory == 'Restaurant' &&
-                      category != 'Restaurant') {
-                    return false;
-                  }
-                  if (_selectedCategory == 'Bakery & Cafe' &&
-                      category != 'Bakery') {
-                    return false;
-                  }
-                  if (_selectedCategory == 'Catering' && category != 'Catering') {
-                    return false;
-                  }
+          if (category == 'Supermarket') return false;
 
-                  // If 'All', keeping everything EXCEPT Supermarket (already handled)
-                  return true;
-                }).toList();
+          if (_selectedCategory == 'Restaurant' && category != 'Restaurant') {
+            return false;
+          }
+          if (_selectedCategory == 'Bakery & Cafe' && category != 'Bakery') {
+            return false;
+          }
+          if (_selectedCategory == 'Catering' && category != 'Catering') {
+            return false;
+          }
 
-                if (_userLocation != null) {
-                  // Filter by distance (10km = 10000m)
-                  shops = shops.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final location = data['location'] as Map<String, dynamic>?;
-                    if (location == null || location['geopoint'] == null) {
-                      return false;
-                    }
+          return true;
+        }).toList();
 
-                    final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
-                    final double distance = Geolocator.distanceBetween(
-                      _userLocation!.latitude,
-                      _userLocation!.longitude,
-                      shopPoint.latitude,
-                      shopPoint.longitude,
-                    );
+        if (_userLocation != null) {
+          shops = shops.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final location = data['location'] as Map<String, dynamic>?;
+            if (location == null || location['geopoint'] == null) return false;
 
-                    return distance <= 10000;
-                  }).toList();
+            final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
+            final double distance = Geolocator.distanceBetween(
+              _userLocation!.latitude,
+              _userLocation!.longitude,
+              shopPoint.latitude,
+              shopPoint.longitude,
+            );
+            return distance <= 10000;
+          }).toList();
 
-                  // Sort by distance (nearest first)
-                  shops.sort((a, b) {
-                    final aData = a.data() as Map<String, dynamic>;
-                    final bData = b.data() as Map<String, dynamic>;
+          shops.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aLoc = aData['location']['geopoint'] as GeoPoint;
+            final bLoc = bData['location']['geopoint'] as GeoPoint;
 
-                    final aLoc = aData['location']['geopoint'] as GeoPoint;
-                    final bLoc = bData['location']['geopoint'] as GeoPoint;
+            final double distA = Geolocator.distanceBetween(
+              _userLocation!.latitude,
+              _userLocation!.longitude,
+              aLoc.latitude,
+              aLoc.longitude,
+            );
+            final double distB = Geolocator.distanceBetween(
+              _userLocation!.latitude,
+              _userLocation!.longitude,
+              bLoc.latitude,
+              bLoc.longitude,
+            );
+            return distA.compareTo(distB);
+          });
+        }
 
-                    final double distA = Geolocator.distanceBetween(
-                      _userLocation!.latitude,
-                      _userLocation!.longitude,
-                      aLoc.latitude,
-                      aLoc.longitude,
-                    );
+        if (shops.isEmpty) return _buildEmptyState();
 
-                    final double distB = Geolocator.distanceBetween(
-                      _userLocation!.latitude,
-                      _userLocation!.longitude,
-                      bLoc.latitude,
-                      bLoc.longitude,
-                    );
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── Category filter bar ──
+                SliverToBoxAdapter(child: _buildCategoryBar()),
 
-                    return distA.compareTo(distB);
-                  });
-                }
+                // ── Result count chip ──
+                SliverToBoxAdapter(
+                  child: _buildResultsHeader(shops.length),
+                ),
 
-                if (shops.isEmpty) {
-                  return const Center(
-                    child: Text("No restaurants found nearby."),
-                  );
-                }
-
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        color: Colors.white,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          physics: const BouncingScrollPhysics(),
-                          child: Row(
-                            children: _categories.map((category) {
-                              final isSelected = _selectedCategory == category;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCategory = category;
-                                  });
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.only(right: 12),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? const Color(0xFF00bf63)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0xFF00bf63)
-                                          : Colors.grey.withOpacity(0.2),
-                                      width: isSelected ? 0 : 1,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: const Color(
-                                                0xFF00bf63,
-                                              ).withOpacity(0.3),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ]
-                                        : [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.02,
-                                              ),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                  ),
-                                  child: Text(
-                                    category,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.grey[700],
-                                      fontWeight: isSelected
-                                          ? FontWeight.w800
-                                          : FontWeight.w600,
-                                      fontSize: 14,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SliverPadding(
-                      // --- ADDED BOTTOM PADDING HERE ---
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final shop = shops[index];
-                          final data = shop.data() as Map<String, dynamic>;
-
-                          return ShopCard(
+                // ── Shop list ──
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final shop = shops[index];
+                        final data = shop.data() as Map<String, dynamic>;
+                        return _AnimatedListItem(
+                          index: index,
+                          child: ShopCard(
                             shopId: shop.id,
                             data: data,
                             defaultIcon: Icons.restaurant,
                             defaultCategory: "Restaurant",
-                          );
-                        }, childCount: shops.length),
-                      ),
+                          ),
+                        );
+                      },
+                      childCount: shops.length,
                     ),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ],
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Category filter bar ──────────────────────────────────────────────────
+  Widget _buildCategoryBar() {
+    return Container(
+      color: _cardBg,
+      padding: const EdgeInsets.only(top: 14, bottom: 14),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: _categoryData.map((cat) {
+            final label = cat['label'] as String;
+            final icon = cat['icon'] as IconData;
+            final isSelected = _selectedCategory == label;
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _CategoryChip(
+                label: label,
+                icon: icon,
+                isSelected: isSelected,
+                primaryColor: _primaryGreen,
+                onTap: () => setState(() => _selectedCategory = label),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // ── Result count header ──────────────────────────────────────────────────
+  Widget _buildResultsHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Row(
+        children: [
+          Text(
+            '$count ${count == 1 ? 'place' : 'places'} nearby',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _textMuted,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: _primaryGreen,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Empty state ──────────────────────────────────────────────────────────
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: _primaryGreen.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 36,
+                color: _primaryGreen,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No places found nearby',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try switching categories or check back later.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: _textMuted,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Error state ──────────────────────────────────────────────────────────
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 36,
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Something went wrong',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: _textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category chip ────────────────────────────────────────────────────────────
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final Color primaryColor;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.primaryColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: isSelected ? primaryColor : const Color(0xFFE4E8EE),
+            width: 1.4,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.28),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              child: Icon(
+                icon,
+                size: 15,
+                color: isSelected ? Colors.white : const Color(0xFF8A93A2),
+              ),
+            ),
+            const SizedBox(width: 7),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 280),
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13.5,
+                letterSpacing: 0.2,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Staggered list item animation ────────────────────────────────────────────
+class _AnimatedListItem extends StatefulWidget {
+  final int index;
+  final Widget child;
+
+  const _AnimatedListItem({required this.index, required this.child});
+
+  @override
+  State<_AnimatedListItem> createState() => _AnimatedListItemState();
+}
+
+class _AnimatedListItemState extends State<_AnimatedListItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    // Staggered delay based on index (capped at 6 items to avoid long waits)
+    final delay = Duration(milliseconds: 60 * (widget.index % 6));
+    Future.delayed(delay, () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }
