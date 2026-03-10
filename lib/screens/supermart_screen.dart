@@ -158,7 +158,8 @@ class _SupermartScreenState extends State<SupermartScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  // --- ADDED BOTTOM PADDING HERE ---
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                   itemCount: shops.length,
                   itemBuilder: (context, index) {
                     final shop = shops[index];

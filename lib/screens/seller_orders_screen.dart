@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_now/services/user_service.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'dart:async';
 
 class SellerOrdersScreen extends StatefulWidget {
@@ -106,7 +107,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 if (formKey.currentState!.validate()) {
                   final String reason = reasonController.text.trim();
                   try {
-                    // Update order status
                     await FirebaseFirestore.instance
                         .collection('orders')
                         .doc(orderId)
@@ -239,7 +239,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 ElevatedButton(
                   onPressed: () {
                     if (otpController.text == correctOtp) {
-                      // Update status to completed
                       FirebaseFirestore.instance
                           .collection('orders')
                           .doc(orderId)
@@ -278,6 +277,16 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     );
   }
 
+  // --- Show the Global Scanner Screen ---
+  void _openGlobalQRScanner(BuildContext context, String shopId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _GlobalQRScannerScreen(shopId: shopId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_user == null) return const Center(child: Text("Not Authenticated"));
@@ -296,9 +305,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
 
         final String shopId = shopSnapshot.data!.id;
 
-        // Wrap everything in DefaultTabController
         return DefaultTabController(
-          length: 2, // Two tabs: Pending & Completed
+          length: 2,
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('orders')
@@ -317,7 +325,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
 
               final docs = orderSnapshot.data?.docs ?? [];
 
-              // Filter orders into two lists
               final pendingOrders = docs.where((doc) {
                 final status =
                     (doc.data() as Map<String, dynamic>)['status'] ?? 'pending';
@@ -355,13 +362,30 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 ),
                 body: TabBarView(
                   children: [
-                    // Tab 1: Pending Orders
                     _buildOrderList(pendingOrders, isPendingTab: true),
-
-                    // Tab 2: Completed/Past Orders
                     _buildOrderList(completedOrders, isPendingTab: false),
                   ],
                 ),
+                // --- Global Scanner FAB ---
+                floatingActionButton: FloatingActionButton.extended(
+                  onPressed: () => _openGlobalQRScanner(context, shopId),
+                  backgroundColor: const Color(0xFF00bf63),
+                  elevation: 4,
+                  icon: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "SCAN QR",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerFloat,
               );
             },
           ),
@@ -408,7 +432,12 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 80,
+      ), // Padding for FAB
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final orderDoc = orders[index];
@@ -465,7 +494,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -618,7 +646,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
               ),
             ),
 
-          // Items
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -719,9 +746,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                   const SizedBox(height: 8),
                   CancellationTimer(
                     createdAt: (data['createdAt'] as Timestamp).toDate(),
-                    onExpired: () {
-                      // Optionally refresh UI or state
-                    },
+                    onExpired: () {},
                     onCancel: () => _showCancelOrderDialog(
                       context,
                       orderId,
@@ -734,6 +759,174 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- The NEW Global Camera Scanner Screen ---
+class _GlobalQRScannerScreen extends StatefulWidget {
+  final String shopId;
+
+  const _GlobalQRScannerScreen({required this.shopId});
+
+  @override
+  State<_GlobalQRScannerScreen> createState() => _GlobalQRScannerScreenState();
+}
+
+class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
+  final MobileScannerController controller = MobileScannerController();
+  bool _isProcessing = false;
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("❌ $message"),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+    // Allow scanning again after a brief pause
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _isProcessing = false);
+    });
+  }
+
+  void _handleBarcode(BarcodeCapture capture) async {
+    if (_isProcessing) return;
+
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      final String? rawValue = barcode.rawValue;
+      if (rawValue != null && rawValue.startsWith("foodnow_pickup:")) {
+        setState(() => _isProcessing = true);
+
+        final parts = rawValue.split(":");
+        if (parts.length == 3) {
+          final String orderId = parts[1];
+          final String scannedOtp = parts[2];
+
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('orders')
+                .doc(orderId)
+                .get();
+
+            if (!doc.exists) {
+              _showError("Order not found in database.");
+              return;
+            }
+
+            final data = doc.data() as Map<String, dynamic>;
+
+            if (data['shopId'] != widget.shopId) {
+              _showError("This order belongs to a different shop.");
+              return;
+            }
+
+            if (data['status'] == 'completed') {
+              _showError("This order is already completed.");
+              return;
+            }
+
+            if (data['status'] == 'cancelled') {
+              _showError("This order was cancelled.");
+              return;
+            }
+
+            if (data['otp'] != scannedOtp) {
+              _showError("Invalid OTP in QR code.");
+              return;
+            }
+
+            // All checks passed! Mark as completed.
+            await FirebaseFirestore.instance
+                .collection('orders')
+                .doc(orderId)
+                .update({'status': 'completed'});
+
+            if (mounted) {
+              Navigator.pop(context); // Close scanner
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("✅ Order Verified & Completed!"),
+                  backgroundColor: Color(0xFF00bf63),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } catch (e) {
+            _showError("Error verifying order: $e");
+          }
+        } else {
+          _showError("Invalid QR Code Format.");
+        }
+        break; // Stop loop after processing the first matching QR
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Scan Pickup QR",
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(controller: controller, onDetect: _handleBarcode),
+          // Simple scanning overlay
+          Center(
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF00bf63), width: 4),
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 60,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "Center the QR code in the box",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isProcessing)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(child: CustomLoader()),
+            ),
         ],
       ),
     );

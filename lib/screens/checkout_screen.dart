@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- Added Firestore import
 import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../widgets/custom_loader.dart';
@@ -112,6 +113,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser!;
       
+      // ─── NEW: Fetch the actual user's name from Firestore ───
+      String realBuyerName = user.displayName ?? "Customer";
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (userDoc.exists && userDoc.data() != null) {
+          final userData = userDoc.data()!;
+          if (userData.containsKey('name') && userData['name'].toString().trim().isNotEmpty) {
+            realBuyerName = userData['name'];
+          }
+        }
+      } catch (e) {
+        debugPrint("Error fetching user name: $e");
+      }
+      // ────────────────────────────────────────────────────────
+      
       final verifyResponse = await http.post(
         Uri.parse('$backendUrl/api/payment/verify-payment'),
         headers: {'Content-Type': 'application/json'},
@@ -119,10 +135,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'razorpay_order_id': response.orderId,
           'razorpay_payment_id': response.paymentId,
           'razorpay_signature': response.signature,
-          'buyerId': user.uid,                     // Changed to buyerId
-          'buyerName': user.displayName ?? "Buyer",// Added
+          'buyerId': user.uid,                     
+          'buyerName': realBuyerName,              // <-- Now passing the real name!
           'shopId': widget.shopId,
-          'shopName': widget.shopName,             // Added
+          'shopName': widget.shopName,             
           'items': widget.cartItems,
           'totalAmount': widget.totalAmount,
         }),

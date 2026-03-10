@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart'; // Added QR package
 import '../widgets/custom_loader.dart';
 import 'package:intl/intl.dart';
 
@@ -137,9 +138,9 @@ class BuyerOrdersScreen extends StatelessWidget {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: Colors.red[300]),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Something went wrong',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -199,7 +200,6 @@ class BuyerOrdersScreen extends StatelessWidget {
   }
 }
 
-// --- Animated wrapper for staggered entry ---
 class _AnimatedOrderCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final String orderId;
@@ -234,7 +234,6 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
-    // Stagger animation based on index
     Future.delayed(Duration(milliseconds: 60 * widget.index), () {
       if (mounted) _controller.forward();
     });
@@ -258,12 +257,92 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
-// --- Core Order Card ---
 class _OrderCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final String orderId;
 
   const _OrderCard({required this.data, required this.orderId});
+
+  // --- Show QR Code Dialog ---
+  void _showQRCode(BuildContext context, String orderId, String otp) {
+    // We encode a specific string format so the scanner knows it's valid
+    final qrData = "foodnow_pickup:$orderId:$otp";
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          contentPadding: const EdgeInsets.all(32),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Show to Seller",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Scan this QR code to confirm pickup",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "OTP: $otp",
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 4,
+                  color: Color(0xFF00bf63),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "CLOSE",
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +398,6 @@ class _OrderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Colored accent top bar ---
             AnimatedContainer(
               duration: const Duration(milliseconds: 400),
               height: 4,
@@ -331,14 +409,11 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             ),
-
-            // --- Header ---
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Shop icon avatar
                   Container(
                     width: 44,
                     height: 44,
@@ -388,7 +463,6 @@ class _OrderCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Status pill
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -422,14 +496,10 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // --- Divider ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: Divider(height: 1, color: Colors.grey[100], thickness: 1),
             ),
-
-            // --- Cancellation Reason ---
             if (status == 'cancelled' && data['cancelReason'] != null)
               Container(
                 width: double.infinity,
@@ -478,7 +548,6 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-
             if (status == 'cancelled')
               Container(
                 width: double.infinity,
@@ -511,8 +580,6 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-            // --- Items ---
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
               child: Column(
@@ -580,8 +647,6 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // --- Footer ---
             Container(
               decoration: BoxDecoration(
                 color: Colors.grey[50],
@@ -593,7 +658,6 @@ class _OrderCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Total amount
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -619,69 +683,64 @@ class _OrderCard extends StatelessWidget {
                     ],
                   ),
 
-                  // OTP badge (pending only)
+                  // --- Updated Footer for QR Code ---
                   if (status == 'pending')
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00bf63), Color(0xFF00a854)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    Row(
+                      children: [
+                        // OTP Display
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              "OTP",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              otp,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF00bf63).withOpacity(0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(
-                                Icons.key_rounded,
-                                color: Colors.white70,
-                                size: 11,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                "PICKUP OTP",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            otp,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 4,
+                        const SizedBox(width: 12),
+                        // QR Code Button
+                        ElevatedButton.icon(
+                          onPressed: () => _showQRCode(context, orderId, otp),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00bf63),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ],
-                      ),
+                          icon: const Icon(Icons.qr_code_2_rounded, size: 20),
+                          label: const Text(
+                            "SHOW QR",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
             ),
-
-            // --- Review section (completed) ---
             if (status == 'completed') ...[
               FutureBuilder<QuerySnapshot>(
                 future: FirebaseFirestore.instance
@@ -741,7 +800,6 @@ class _OrderCard extends StatelessWidget {
                                 ),
                               ),
                               const Spacer(),
-                              // Star rating display
                               Row(
                                 children: List.generate(5, (index) {
                                   return Padding(

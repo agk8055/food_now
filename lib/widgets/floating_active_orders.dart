@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:food_now/screens/buyer_orders_screen.dart';
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
@@ -139,6 +140,89 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
     }
   }
 
+  // ─── Show QR Code Dialog ───
+  void _showQRCode(BuildContext context, String orderId, String otp) {
+    final qrData = "foodnow_pickup:$orderId:$otp";
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          contentPadding: const EdgeInsets.all(32),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Show to Seller",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Scan this QR code to confirm pickup",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "OTP: $otp",
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 4,
+                  color: Color(0xFF00bf63),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "CLOSE",
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSingleOrderCard(String orderId, Map<String, dynamic> data, {required bool isSingle}) {
     final shopName = data['shopName'] ?? 'Your Order';
     final status = data['status'] ?? 'pending';
@@ -146,196 +230,209 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
     final otp = data['otp'] ?? '----';
     final cancelReason = data['cancelReason'] ?? 'Cancelled by seller';
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const BuyerOrdersScreen()),
-            );
-          },
-          child: Container(
-            margin: isSingle
-                ? const EdgeInsets.symmetric(horizontal: 16)
-                : const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const BuyerOrdersScreen()),
+        );
+      },
+      child: Container(
+        margin: isSingle
+            ? const EdgeInsets.symmetric(horizontal: 16)
+            : const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white, // Always white background now
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(
+            color: isCancelled ? Colors.red.shade200 : _AppColors.border,
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            // ─── Icon ───
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: isCancelled ? Colors.red.shade50 : _AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(
+                  // Changed from cancel_outlined to info_outline_rounded
+                  isCancelled ? Icons.info_outline_rounded : Icons.storefront_rounded,
+                  color: isCancelled ? Colors.red.shade400 : _AppColors.primary,
+                  size: 20,
                 ),
-              ],
-              border: Border.all(
-                color: isCancelled ? Colors.red.shade200 : _AppColors.border,
-                width: 1.0,
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  height: 42,
-                  width: 42,
-                  decoration: BoxDecoration(
-                    color: isCancelled ? Colors.red.shade50 : _AppColors.primaryLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      isCancelled ? Icons.error_outline_rounded : Icons.storefront_rounded,
-                      color: isCancelled ? Colors.red.shade400 : _AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+            // ─── Center Details ───
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        shopName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          color: _AppColors.textPrimary,
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      
-                      if (isCancelled) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          cancelReason,
+                      Flexible(
+                        child: Text(
+                          shopName,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.red.shade500,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: isCancelled ? Colors.red.shade900 : _AppColors.textPrimary,
+                            letterSpacing: -0.3,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        )
-                      ] else ...[
-                        const SizedBox(height: 2),
-                        // ─── THE FIX: Opaque Hit Testing & Pill Background ───
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque, // Forces Flutter to catch taps here
-                          onTap: () => _launchNavigation(data),
-                          child: Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50, // Subtle blue pill background
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.near_me_rounded, size: 14, color: Colors.blue.shade600),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Get Directions",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue.shade600,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.1,
-                                  ),
-                                ),
-                              ],
+                        ),
+                      ),
+                      if (isCancelled) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.red.shade100)
+                          ),
+                          child: Text(
+                            "CANCELLED",
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.red.shade600,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
-                      ],
+                      ]
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 4),
+                  
+                  if (isCancelled)
+                    Text(
+                      cancelReason,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  else
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _launchNavigation(data),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.near_me_rounded, size: 14, color: Colors.blue.shade600),
+                            const SizedBox(width: 4),
+                            Text(
+                              "Get Directions",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // ─── Right Side Action (QR or Dismiss) ───
+            if (isCancelled)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () async {
+                  setState(() {
+                    _dismissedOrders.add(orderId);
+                    _pendingOrders.removeWhere((doc) => doc.id == orderId);
+                    if (_currentOrderPage >= _pendingOrders.length && _pendingOrders.isNotEmpty) {
+                      _currentOrderPage = _pendingOrders.length - 1;
+                    }
+                  });
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('orders')
+                        .doc(orderId)
+                        .update({'dismissedByBuyer': true});
+                  } catch (e) {
+                    debugPrint("Error updating dismissal: $e");
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50, // Added red tint background
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red.shade200), // Red border
+                  ),
+                  child: Icon(Icons.close_rounded, size: 16, color: Colors.red.shade600),
+                ),
+              )
+            else
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _showQRCode(context, orderId, otp),
+                child: Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _AppColors.primary.withOpacity(0.15)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.qr_code_2_rounded, color: _AppColors.primary, size: 20),
+                      const SizedBox(height: 2),
+                      Text(
+                        "QR",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: _AppColors.primary,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-
-                if (!isCancelled)
-                  Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _AppColors.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _AppColors.primary.withOpacity(0.15)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "OTP",
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: _AppColors.primary.withOpacity(0.8),
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          otp,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: _AppColors.primary,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        if (isCancelled)
-          Positioned(
-            top: isSingle ? -8 : -8,
-            right: isSingle ? 8 : -2,
-            child: GestureDetector(
-              onTap: () async {
-                setState(() {
-                  _dismissedOrders.add(orderId);
-                  _pendingOrders.removeWhere((doc) => doc.id == orderId);
-                  if (_currentOrderPage >= _pendingOrders.length && _pendingOrders.isNotEmpty) {
-                    _currentOrderPage = _pendingOrders.length - 1;
-                  }
-                });
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('orders')
-                      .doc(orderId)
-                      .update({'dismissedByBuyer': true});
-                } catch (e) {
-                  debugPrint("Error updating dismissal: $e");
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _AppColors.border),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
-                  ],
-                ),
-                child: const Icon(Icons.close_rounded, size: 14, color: _AppColors.textSecondary),
               ),
-            ),
-          ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -364,7 +461,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: 82,
+                  height: 84,
                   child: PageView.builder(
                     controller: _pageController,
                     onPageChanged: (index) {
@@ -378,7 +475,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders> {
                     },
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

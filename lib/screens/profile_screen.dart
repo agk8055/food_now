@@ -7,7 +7,7 @@ import 'package:food_now/screens/edit_profile_screen.dart';
 import 'package:food_now/screens/login_screen.dart';
 import 'package:food_now/screens/buyer_orders_screen.dart';
 import 'package:food_now/screens/favorites_screen.dart';
-import 'package:food_now/screens/notifications_screen.dart'; // <-- Imported NotificationsScreen
+import 'package:food_now/screens/notifications_screen.dart';
 import 'package:food_now/services/auth_service.dart';
 import 'package:food_now/widgets/seller_banner.dart';
 
@@ -43,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Guest View (Logged Out) ────────────────────────────────────────────────
   Widget _buildGuestView(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB), // Soft premium background
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text(
           "Profile",
@@ -58,96 +58,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
         scrolledUnderElevation: 0,
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Spacer(flex: 2),
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryGreen.withOpacity(0.15),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(24),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40), // Spacer replacement for scrollview
+              Container(
+                padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: primaryGreen.withOpacity(0.1),
+                  color: Colors.white,
                   shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 64,
-                  color: primaryGreen,
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              "Come on in!",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: Colors.black87,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Log in or Sign up to view your orders, update your profile, and save your favorite foods.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[600],
-                height: 1.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(flex: 3),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primaryGreen.withOpacity(0.15),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGreen,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  shadowColor: primaryGreen.withOpacity(0.5),
+                  ],
                 ),
-                child: const Text(
-                  "Login / Sign Up",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: primaryGreen.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 64,
+                    color: primaryGreen,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const SellerBanner(),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 32),
+              const Text(
+                "Come on in!",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.black87,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Log in or Sign up to view your orders, update your profile, and save your favorite foods.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 60), // Spacer replacement
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    shadowColor: primaryGreen.withOpacity(0.5),
+                  ),
+                  child: const Text(
+                    "Login / Sign Up",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const SellerBanner(),
+              // --- ADDED BOTTOM PADDING HERE ---
+              const SizedBox(height: 120),
+            ],
+          ),
         ),
       ),
     );
@@ -251,7 +254,6 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                         title: "Settings & Support",
                         items: [
                           _buildMenuItem(
-                            // <-- UPDATED THIS ITEM TO NAVIGATE TO NOTIFICATION SCREEN
                             icon: Icons.notifications_active_rounded,
                             title: "Notifications",
                             isFirst: true,
@@ -275,7 +277,8 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                       ),
                       const SizedBox(height: 32),
                       _buildLogoutButton(),
-                      const SizedBox(height: 40),
+                      // --- ADDED BOTTOM PADDING HERE ---
+                      const SizedBox(height: 120),
                     ],
                   ),
                 ),
@@ -377,7 +380,6 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 10),
-                // Avatar with premium border
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -563,7 +565,7 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile> {
                 height: 1,
                 thickness: 1,
                 color: Colors.grey.shade100,
-                indent: 70, // Aligns divider with text
+                indent: 70,
                 endIndent: 20,
               ),
           ],

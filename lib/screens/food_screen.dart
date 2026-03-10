@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_loader.dart';
 import '../widgets/shop_card.dart';
 
-
 class FoodScreen extends StatefulWidget {
   final String? initialCategory;
 
@@ -83,14 +82,19 @@ class _FoodScreenState extends State<FoodScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String appBarTitle = _selectedCategory == 'All' ? 'Food' : _selectedCategory;
+    String appBarTitle = _selectedCategory == 'All'
+        ? 'Food'
+        : _selectedCategory;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: Text(
           appBarTitle,
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87),
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -102,7 +106,6 @@ class _FoodScreenState extends State<FoodScreen> {
               stream: FirebaseFirestore.instance
                   .collection('shops')
                   .where('verificationStatus', isEqualTo: 'approved')
-                  // Removed 'isOpen' filter so we can see closed shops too
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -122,15 +125,20 @@ class _FoodScreenState extends State<FoodScreen> {
                 ) {
                   final data = doc.data() as Map<String, dynamic>;
                   final category = data['category'] ?? 'Other';
-                  
+
                   // Hide Supermarkets
                   if (category == 'Supermarket') return false;
 
                   // Apply filter
-                  if (_selectedCategory == 'Restaurant' && category != 'Restaurant') return false;
-                  if (_selectedCategory == 'Bakery & Cafe' && category != 'Bakery') return false; // Assuming 'Bakery' is the enum value
-                  if (_selectedCategory == 'Catering' && category != 'Catering') return false; // Assuming 'Catering' is the enum value
-                  
+                  if (_selectedCategory == 'Restaurant' &&
+                      category != 'Restaurant')
+                    return false;
+                  if (_selectedCategory == 'Bakery & Cafe' &&
+                      category != 'Bakery')
+                    return false;
+                  if (_selectedCategory == 'Catering' && category != 'Catering')
+                    return false;
+
                   // If 'All', keeping everything EXCEPT Supermarket (already handled)
                   return true;
                 }).toList();
@@ -227,18 +235,21 @@ class _FoodScreenState extends State<FoodScreen> {
                                     boxShadow: isSelected
                                         ? [
                                             BoxShadow(
-                                              color: const Color(0xFF00bf63)
-                                                  .withOpacity(0.3),
+                                              color: const Color(
+                                                0xFF00bf63,
+                                              ).withOpacity(0.3),
                                               blurRadius: 8,
                                               offset: const Offset(0, 4),
-                                            )
+                                            ),
                                           ]
                                         : [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.02),
+                                              color: Colors.black.withOpacity(
+                                                0.02,
+                                              ),
                                               blurRadius: 4,
                                               offset: const Offset(0, 2),
-                                            )
+                                            ),
                                           ],
                                   ),
                                   child: Text(
@@ -262,22 +273,20 @@ class _FoodScreenState extends State<FoodScreen> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.all(16),
+                      // --- ADDED BOTTOM PADDING HERE ---
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final shop = shops[index];
-                            final data = shop.data() as Map<String, dynamic>;
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final shop = shops[index];
+                          final data = shop.data() as Map<String, dynamic>;
 
-                            return ShopCard(
-                              shopId: shop.id,
-                              data: data,
-                              defaultIcon: Icons.restaurant,
-                              defaultCategory: "Restaurant",
-                            );
-                          },
-                          childCount: shops.length,
-                        ),
+                          return ShopCard(
+                            shopId: shop.id,
+                            data: data,
+                            defaultIcon: Icons.restaurant,
+                            defaultCategory: "Restaurant",
+                          );
+                        }, childCount: shops.length),
                       ),
                     ),
                   ],
