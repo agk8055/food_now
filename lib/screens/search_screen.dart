@@ -13,14 +13,26 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   String _searchQuery = "";
   GeoPoint? _userLocation;
+
+  final Color primaryGreen = const Color(0xFF00bf63);
+
+  late TabController _tabController;
+  late AnimationController _animController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
     _fetchUserLocation();
   }
 
@@ -37,9 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
           final location = data['location'] as Map<String, dynamic>?;
           if (location != null && location['geopoint'] != null) {
             if (mounted) {
-              setState(() {
-                _userLocation = location['geopoint'] as GeoPoint;
-              });
+              setState(() => _userLocation = location['geopoint'] as GeoPoint);
             }
             return;
           }
@@ -49,13 +59,8 @@ class _SearchScreenState extends State<SearchScreen> {
       final prefs = await SharedPreferences.getInstance();
       final double? lat = prefs.getDouble('cached_geopoint_lat');
       final double? lon = prefs.getDouble('cached_geopoint_lon');
-
       if (lat != null && lon != null) {
-        if (mounted) {
-          setState(() {
-            _userLocation = GeoPoint(lat, lon);
-          });
-        }
+        if (mounted) setState(() => _userLocation = GeoPoint(lat, lon));
       }
     } catch (e) {
       debugPrint('Error fetching user location: $e');
@@ -65,103 +70,265 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _focusNode.dispose();
+    _tabController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
-  // Helper method for Zomato-style "starts with" / word boundary search
   bool _matchesSearch(String text, String query) {
     if (query.isEmpty) return true;
     final t = text.toLowerCase();
     final q = query.toLowerCase();
-
-    // Returns true if the word starts with the query
-    // OR if any subsequent word starts with the query (indicated by a space)
     return t.startsWith(q) || t.contains(' $q');
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: TextField(
-            controller: _searchController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: "Search for restaurants, food...",
-              border: InputBorder.none,
-              hintStyle: TextStyle(color: Colors.grey),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value.trim();
-              });
-            },
-          ),
-          actions: [
-            if (_searchQuery.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.clear, color: Colors.black),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchQuery = "";
-                  });
-                },
-              ),
-          ],
-          bottom: const TabBar(
-            labelColor: Color(0xFF00bf63),
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Color(0xFF00bf63),
-            tabs: [
-              Tab(text: "Restaurants"),
-              Tab(text: "Food Items"),
-            ],
-          ),
-        ),
-        body: _searchQuery.isEmpty
-            ? _buildInitialState()
-            : TabBarView(
-                children: [
-                  _buildShopSearchResults(),
-                  _buildFoodSearchResults(),
-                ],
-              ),
-      ),
-    );
-  }
-
-  // Displayed when the user hasn't typed anything yet
-  Widget _buildInitialState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F6F8),
+      body: Column(
         children: [
-          Icon(Icons.search_rounded, size: 80, color: Colors.grey[200]),
-          const SizedBox(height: 16),
-          Text(
-            "What are you craving today?",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[400],
-            ),
+          _buildSearchHeader(context),
+          _buildTabBar(),
+          Expanded(
+            child: _searchQuery.isEmpty
+                ? _buildInitialState()
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildShopSearchResults(),
+                      _buildFoodSearchResults(),
+                    ],
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // 1. Shop Search Logic with updated word boundary check
+  // ── Search Header ──────────────────────────────────────────────────────────
+
+  Widget _buildSearchHeader(BuildContext context) {
+    return FadeTransition(
+      opacity: CurvedAnimation(
+        parent: _animController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+      child: Container(
+        color: Colors.white,
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 10,
+          left: 16,
+          right: 16,
+          bottom: 14,
+        ),
+        child: Row(
+          children: [
+            // Back button
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F6F8),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: Color(0xFF111111),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Search field
+            Expanded(
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F6F8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _focusNode.hasFocus
+                        ? primaryGreen.withOpacity(0.4)
+                        : Colors.transparent,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 14),
+                    Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111111),
+                          letterSpacing: -0.1,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "Restaurants, food...",
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.5,
+                          ),
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (value) {
+                          setState(() => _searchQuery = value.trim());
+                        },
+                      ),
+                    ),
+                    // Clear button
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: child),
+                      child: _searchQuery.isNotEmpty
+                          ? GestureDetector(
+                              key: const ValueKey('clear'),
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = "");
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close_rounded,
+                                      size: 13, color: Colors.white),
+                                ),
+                              ),
+                            )
+                          : const SizedBox(key: ValueKey('empty'), width: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tab Bar ────────────────────────────────────────────────────────────────
+
+  Widget _buildTabBar() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          TabBar(
+            controller: _tabController,
+            labelColor: primaryGreen,
+            unselectedLabelColor: Colors.grey[400],
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
+              letterSpacing: 0.2,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13.5,
+            ),
+            indicatorColor: primaryGreen,
+            indicatorWeight: 2.5,
+            indicatorSize: TabBarIndicatorSize.label,
+            tabs: const [
+              Tab(text: "Restaurants"),
+              Tab(text: "Food Items"),
+            ],
+          ),
+          // Subtle bottom shadow separator
+          Container(
+            height: 1,
+            color: Colors.grey.shade100,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Initial / Empty State ──────────────────────────────────────────────────
+
+  Widget _buildInitialState() {
+    return FadeTransition(
+      opacity: CurvedAnimation(
+        parent: _animController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.07),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: primaryGreen.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.search_rounded,
+                    size: 34,
+                    color: primaryGreen.withOpacity(0.7),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "What are you craving today?",
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF333333),
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Search for restaurants or food items nearby",
+              style: TextStyle(
+                fontSize: 13.5,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Shop Results ───────────────────────────────────────────────────────────
+
   Widget _buildShopSearchResults() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -180,13 +347,10 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final queryLower = _searchQuery.toLowerCase();
-
         final results = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final shopName = (data['shopName'] ?? '').toString();
           final category = (data['category'] ?? '').toString();
-
-          // Replaced .contains with _matchesSearch
           return _matchesSearch(shopName, queryLower) ||
               _matchesSearch(category, queryLower);
         }).toList();
@@ -196,18 +360,24 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: false,
           itemCount: results.length,
           itemBuilder: (context, index) {
             final doc = results[index];
             final data = doc.data() as Map<String, dynamic>;
-            return ShopCard(
-              shopId: doc.id,
-              data: data,
-              userLocation: _userLocation,
-              isCompact: true,
-              defaultIcon: Icons.restaurant,
-              defaultCategory: "Restaurant",
+            return _buildAnimatedItem(
+              index: index,
+              child: ShopCard(
+                shopId: doc.id,
+                data: data,
+                userLocation: _userLocation,
+                isCompact: true,
+                defaultIcon: Icons.restaurant,
+                defaultCategory: "Restaurant",
+              ),
             );
           },
         );
@@ -215,7 +385,8 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 2. Food Search Logic with updated word boundary check
+  // ── Food Results ───────────────────────────────────────────────────────────
+
   Widget _buildFoodSearchResults() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -234,12 +405,9 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final queryLower = _searchQuery.toLowerCase();
-
         final results = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final itemName = (data['name'] ?? '').toString();
-
-          // Replaced .contains with _matchesSearch
           return _matchesSearch(itemName, queryLower);
         }).toList();
 
@@ -248,24 +416,61 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: false,
           itemCount: results.length,
           itemBuilder: (context, index) {
             final doc = results[index];
             final data = doc.data() as Map<String, dynamic>;
-
-            return _buildFoodItemCard(context, data);
+            return _buildAnimatedItem(
+              index: index,
+              child: _buildFoodItemCard(context, data),
+            );
           },
         );
       },
     );
   }
 
-  // Card design specifically for food items
+  // ── Staggered list item animation ─────────────────────────────────────────
+
+  Widget _buildAnimatedItem({required int index, required Widget child}) {
+    final double start = (index * 0.06).clamp(0.0, 0.7);
+    final double end = (start + 0.4).clamp(0.1, 1.0);
+    return FadeTransition(
+      opacity: CurvedAnimation(
+        parent: _animController,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      ),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.12),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: _animController,
+          curve: Interval(start, end, curve: Curves.easeOutCubic),
+        )),
+        child: child,
+      ),
+    );
+  }
+
+  // ── Food Item Card ─────────────────────────────────────────────────────────
+
   Widget _buildFoodItemCard(BuildContext context, Map<String, dynamic> data) {
     final String shopId = data['shopId'] ?? '';
     final String shopName = data['shopName'] ?? 'Unknown Shop';
     final String imageUrl = data['imageUrl'] ?? '';
+    final bool hasDiscount = data['originalPrice'] != null &&
+        data['originalPrice'] != data['discountedPrice'];
+    final int discountPercent = hasDiscount
+        ? (((data['originalPrice'] - data['discountedPrice']) /
+                    data['originalPrice']) *
+                100)
+            .round()
+        : 0;
 
     return GestureDetector(
       onTap: () {
@@ -273,109 +478,232 @@ class _SearchScreenState extends State<SearchScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  ShopMenuScreen(shopId: shopId, shopName: shopName),
+              builder: (_) => ShopMenuScreen(shopId: shopId, shopName: shopName),
             ),
           );
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 5),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.025),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      height: 80,
-                      width: 80,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      height: 80,
-                      width: 80,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.fastfood, color: Colors.grey),
-                    ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Image
+              Stack(
                 children: [
-                  Text(
-                    data['name'] ?? 'Unknown Item',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            height: 86,
+                            width: 86,
+                            fit: BoxFit.cover,
+                            cacheWidth: 172,
+                            cacheHeight: 172,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) =>
+                                _buildFoodPlaceholder(),
+                          )
+                        : _buildFoodPlaceholder(),
+                  ),
+                  if (hasDiscount)
+                    Positioned(
+                      top: 5,
+                      left: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD32F2F),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          '$discountPercent%',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "From: $shopName",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        "₹${data['discountedPrice']}",
-                        style: const TextStyle(
-                          color: Color(0xFF00bf63),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "₹${data['originalPrice']}",
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
-            ),
-          ],
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['name'] ?? 'Unknown Item',
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111111),
+                        letterSpacing: -0.2,
+                        height: 1.2,
+                      ),
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    // Shop name row
+                    Row(
+                      children: [
+                        Icon(Icons.storefront_rounded,
+                            size: 12, color: Colors.grey[400]),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            shopName,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Price row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          '₹${data['discountedPrice']}',
+                          style: TextStyle(
+                            color: primaryGreen,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            letterSpacing: -0.5,
+                            height: 1,
+                          ),
+                        ),
+                        if (hasDiscount) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '₹${data['originalPrice']}',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12.5,
+                              decoration: TextDecoration.lineThrough,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: primaryGreen.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: primaryGreen.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.arrow_forward_ios_rounded,
+                                  size: 10, color: primaryGreen),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildFoodPlaceholder() {
+    return Container(
+      height: 86,
+      width: 86,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
+    );
+  }
+
+  // ── No Results ─────────────────────────────────────────────────────────────
 
   Widget _buildNoResults(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.restaurant_menu, size: 80, color: Colors.grey[200]),
-          const SizedBox(height: 16),
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.07),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.search_off_rounded,
+                    size: 30, color: Colors.grey[350]),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
           Text(
             message,
+            style: const TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF555555),
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Try a different keyword",
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[500],
+              fontSize: 13,
+              color: Colors.grey[400],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

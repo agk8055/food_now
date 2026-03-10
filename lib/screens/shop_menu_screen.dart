@@ -12,7 +12,6 @@ import 'checkout_screen.dart';
 
 class ShopMenuScreen extends StatefulWidget {
   final String shopId;
-
   final String shopName;
   final Map<String, dynamic> shopData;
   final String? heroTag;
@@ -38,21 +37,33 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
   Map<String, dynamic> _resolvedShopData = {};
 
   bool _isFavorite = false;
-
   bool _isTogglingFavorite = false;
 
-  String _dietFilter = 'All'; // 'All', 'Veg', 'Non-Veg'
+  String _dietFilter = 'All';
 
   final Color primaryGreen = const Color(0xFF00bf63);
 
-  // Animation controllers for staggered item entry
   late AnimationController _listAnimationController;
+  late AnimationController _cartBarAnimationController;
+  late AnimationController _headerFadeController;
 
   @override
   void initState() {
     super.initState();
 
     _listAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+
+    _cartBarAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+
+    _headerFadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     )..forward();
@@ -75,6 +86,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
   @override
   void dispose() {
     _listAnimationController.dispose();
+    _cartBarAnimationController.dispose();
+    _headerFadeController.dispose();
     super.dispose();
   }
 
@@ -95,7 +108,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
   Future<void> _loadFavoriteStatus() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-
     if (uid == null) return;
 
     try {
@@ -106,7 +118,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
       if (doc.exists && mounted) {
         final favorites = List<String>.from(doc.data()?['favoriteShops'] ?? []);
-
         setState(() => _isFavorite = favorites.contains(widget.shopId));
       }
     } catch (_) {}
@@ -114,14 +125,12 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
   Future<void> _toggleFavorite() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-
     if (uid == null || _isTogglingFavorite) return;
 
     setState(() => _isTogglingFavorite = true);
 
     try {
       final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-
       if (_isFavorite) {
         await userRef.update({
           'favoriteShops': FieldValue.arrayRemove([widget.shopId]),
@@ -131,7 +140,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
           'favoriteShops': FieldValue.arrayUnion([widget.shopId]),
         });
       }
-
       if (mounted) setState(() => _isFavorite = !_isFavorite);
     } catch (_) {}
 
@@ -140,7 +148,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
   void _updateCart(DocumentSnapshot doc, int change) {
     final item = doc.data() as Map<String, dynamic>;
-
     final id = doc.id;
     final int stock = item['quantity'] ?? 0;
 
@@ -155,8 +162,9 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                 'Only $stock items left in stock for ${item['name']}!',
               ),
               behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.black,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           );
@@ -164,7 +172,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
         }
 
         _cart[id]!['cartQuantity'] = newQty;
-
         if (_cart[id]!['cartQuantity'] <= 0) {
           _cart.remove(id);
         }
@@ -174,8 +181,9 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
             SnackBar(
               content: Text('Out of stock for ${item['name']}!'),
               behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.black,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           );
@@ -184,15 +192,19 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
         _cart[id] = {
           'itemId': id,
-
           'name': item['name'],
-
           'price': (item['discountedPrice'] as num).toDouble(),
-
           'cartQuantity': 1,
         };
       }
     });
+
+    // Animate cart bar in/out
+    if (_cart.isNotEmpty) {
+      _cartBarAnimationController.forward();
+    } else {
+      _cartBarAnimationController.reverse();
+    }
   }
 
   Future<void> _handleCheckout(BuildContext context) async {
@@ -228,7 +240,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
             context: context,
             builder: (context) => AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(28),
               ),
               title: const Text(
                 "Not Enough Stock",
@@ -278,7 +290,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
   int _getTotalItems() {
     return _cart.values.fold(
       0,
-
       (sum, item) => sum + (item['cartQuantity'] as int),
     );
   }
@@ -286,7 +297,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
   double _getTotalPrice() {
     return _cart.values.fold(
       0.0,
-
       (sum, item) =>
           sum + ((item['price'] as double) * (item['cartQuantity'] as int)),
     );
@@ -296,8 +306,9 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     if (dateStr == null ||
         timeStr == null ||
         dateStr.isEmpty ||
-        timeStr.isEmpty)
+        timeStr.isEmpty) {
       return false;
+    }
     try {
       DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
       DateTime time;
@@ -323,85 +334,73 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     }
   }
 
-  // ── Glassmorphic Button Helper ─────────────────────────────────────────────
+  // ── Glassmorphic Button ────────────────────────────────────────────────────
 
   Widget _buildGlassButton({
     required Widget child,
-
     required VoidCallback onTap,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
-
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-
-        child: InkWell(
-          onTap: onTap,
-
-          child: Container(
-            padding: const EdgeInsets.all(10),
-
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.2),
-
-              shape: BoxShape.circle,
-
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(24),
+            splashColor: Colors.white.withOpacity(0.1),
+            child: Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.25),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.25),
+                  width: 1,
+                ),
+              ),
+              child: child,
             ),
-
-            child: child,
           ),
         ),
       ),
     );
   }
 
-  // ── Restaurant Header (UNTOUCHED) ──────────────────────────────────────────
+  // ── Restaurant Header ──────────────────────────────────────────────────────
 
   Widget _buildRestaurantHeader(BuildContext context) {
     final data = _resolvedShopData;
-
     final images = data['images'] as List<dynamic>?;
-
     final String category = data['category'] ?? 'Restaurant';
-
     final String address =
         data['location']?['address'] ?? 'Address not available';
-
     final String rating = (data['rating'] ?? '4.0').toString();
-
     final String mapUrl = data['mapUrl'] ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: [
+        // ── Hero Image Stack ─────────────────────────────────────────────
         Stack(
           children: [
-            // Image Slideshow with rounded bottom
             Hero(
               tag: widget.heroTag ?? 'shop_image_${widget.shopId}',
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(32),
+                  bottom: Radius.circular(36),
                 ),
-
                 child: SizedBox(
-                  height: 340,
-
+                  height: 350,
                   width: double.infinity,
-
                   child: (images != null && images.isNotEmpty)
                       ? _ShopImageSlideshow(images: images.cast<String>())
                       : Container(
                           color: Colors.grey[100],
-
                           child: Icon(
                             Icons.restaurant,
-
                             size: 80,
-
                             color: Colors.grey[300],
                           ),
                         ),
@@ -409,333 +408,159 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
               ),
             ),
 
-            // Smooth Dark Gradient Overlay
+            // Multi-stop gradient for depth
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(32),
+                  bottom: Radius.circular(36),
                 ),
-
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
-
                       end: Alignment.bottomCenter,
-
                       colors: [
-                        Colors.black.withOpacity(0.5),
-
+                        Colors.black.withOpacity(0.55),
                         Colors.transparent,
-
-                        Colors.black.withOpacity(0.9),
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.85),
                       ],
-
-                      stops: const [0.0, 0.4, 1.0],
+                      stops: const [0.0, 0.3, 0.55, 1.0],
                     ),
                   ),
                 ),
               ),
             ),
 
-            // Top Bar (Back & Favorite)
+            // Top Bar
             Positioned(
               top: MediaQuery.of(context).padding.top + 12,
-
               left: 16,
-
               right: 16,
-
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                children: [
-                  _buildGlassButton(
-                    onTap: () => Navigator.pop(context),
-
-                    child: const Icon(
-                      Icons.arrow_back,
-
-                      color: Colors.white,
-
-                      size: 22,
-                    ),
-                  ),
-
-                  _buildGlassButton(
-                    onTap: _isTogglingFavorite ? () {} : _toggleFavorite,
-
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-
-                      transitionBuilder: (child, anim) =>
-                          ScaleTransition(scale: anim, child: child),
-
-                      child: Icon(
-                        _isFavorite ? Icons.favorite : Icons.favorite_border,
-
-                        key: ValueKey(_isFavorite),
-
-                        color: _isFavorite ? Colors.redAccent : Colors.white,
-
-                        size: 22,
+              child: FadeTransition(
+                opacity: _headerFadeController,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildGlassButton(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
                       ),
                     ),
-                  ),
-                ],
+                    _buildGlassButton(
+                      onTap: _isTogglingFavorite ? () {} : _toggleFavorite,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: CurvedAnimation(
+                            parent: anim,
+                            curve: Curves.easeOutBack,
+                          ),
+                          child: child,
+                        ),
+                        child: Icon(
+                          _isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          key: ValueKey(_isFavorite),
+                          color: _isFavorite
+                              ? const Color(0xFFFF4D6D)
+                              : Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            // Info Overlay
+            // Bottom Info Overlay
             Positioned(
               bottom: 24,
-
               left: 20,
-
               right: 20,
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-
-                          vertical: 6,
-                        ),
-
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-
-                          borderRadius: BorderRadius.circular(20),
-
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+              child: FadeTransition(
+                opacity: _headerFadeController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: primaryGreen.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryGreen.withOpacity(0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
-                        ),
-
-                        child: Text(
-                          category.toUpperCase(),
-
-                          style: const TextStyle(
-                            color: Colors.white,
-
-                            fontSize: 10,
-
-                            letterSpacing: 1.2,
-
-                            fontWeight: FontWeight.w700,
-                          ),
+                        ],
+                      ),
+                      child: Text(
+                        category.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
 
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.shopName,
-
-                          style: const TextStyle(
-                            fontSize: 32,
-
-                            fontWeight: FontWeight.w800,
-
-                            color: Colors.white,
-
-                            height: 1.1,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-
-                          vertical: 8,
-                        ),
-
-                        decoration: BoxDecoration(
-                          color: primaryGreen,
-
-                          borderRadius: BorderRadius.circular(16),
-
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryGreen.withOpacity(0.4),
-
-                              blurRadius: 12,
-
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.shopName,
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
                               color: Colors.white,
-
-                              size: 20,
+                              height: 1.1,
+                              letterSpacing: -0.5,
                             ),
-
-                            const SizedBox(width: 4),
-
-                            Text(
-                              rating,
-
-                              style: const TextStyle(
-                                color: Colors.white,
-
-                                fontWeight: FontWeight.bold,
-
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 12),
+                        _RatingBadge(
+                          rating: rating,
+                          primaryGreen: primaryGreen,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
 
-        // ── Address Section (ENHANCED) ─────────────────────────────────────
+        // ── Address Card ─────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          child: GestureDetector(
-            onTap: mapUrl.isNotEmpty
-                ? () async {
-                    final Uri url = Uri.parse(mapUrl);
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
-                      );
-                    }
-                  }
-                : null,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.grey.withOpacity(0.12),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: primaryGreen.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.location_on_rounded,
-                      size: 22,
-                      color: primaryGreen,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Location',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey[400],
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          address,
-                          style: TextStyle(
-                            color: Colors.grey[800],
-                            fontSize: 13.5,
-                            height: 1.4,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (mapUrl.isNotEmpty) ...[
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.directions_rounded,
-                        size: 16,
-                        color: primaryGreen,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+          child: _AddressCard(
+            address: address,
+            mapUrl: mapUrl,
+            primaryGreen: primaryGreen,
           ),
         ),
 
-        // ── Menu Section Title (ENHANCED) ─────────────────────────────────
+        // ── Menu Section Title ───────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: primaryGreen,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'MENU',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.grey[700],
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
-          ),
+          child: _SectionTitle(label: 'MENU', primaryGreen: primaryGreen),
         ),
 
         const SizedBox(height: 16),
@@ -743,18 +568,18 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     );
   }
 
-  // ── Diet Filter Chips (ENHANCED) ──────────────────────────────────────────
+  // ── Diet Filter ────────────────────────────────────────────────────────────
 
   Widget _buildDietFilter() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 18),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
           children: ['All', 'Veg', 'Non-Veg'].map((type) {
             final isSelected = _dietFilter == type;
-            Color typeColor = const Color(0xFF00bf63);
+            Color typeColor = primaryGreen;
             IconData typeIcon = Icons.restaurant_rounded;
             if (type == 'Veg') {
               typeColor = const Color(0xFF2E7D32);
@@ -768,33 +593,33 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
             return GestureDetector(
               onTap: () => setState(() => _dietFilter = type),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOutCubic,
                 margin: const EdgeInsets.only(right: 10),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
+                  horizontal: 20,
+                  vertical: 11,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected ? typeColor : Colors.white,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(30),
                   border: Border.all(
                     color: isSelected
                         ? typeColor
-                        : Colors.grey.withOpacity(0.18),
+                        : Colors.grey.withOpacity(0.15),
                     width: 1.5,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: typeColor.withOpacity(0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                            color: typeColor.withOpacity(0.3),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
                           ),
                         ]
                       : [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withOpacity(0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -804,10 +629,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (type != 'All') ...[
-                      Icon(
-                        typeIcon,
-                        size: 14,
-                        color: isSelected ? Colors.white : typeColor,
+                      AnimatedOpacity(
+                        opacity: 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          typeIcon,
+                          size: 14,
+                          color: isSelected ? Colors.white : typeColor,
+                        ),
                       ),
                       const SizedBox(width: 6),
                     ],
@@ -816,7 +645,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.grey[700],
                         fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                        fontSize: 13.5,
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -830,7 +659,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     );
   }
 
-  // ── Food Item Card (ENHANCED) ──────────────────────────────────────────────
+  // ── Food Item Card ─────────────────────────────────────────────────────────
 
   Widget _buildFoodItemCard(DocumentSnapshot doc, int index) {
     final item = doc.data() as Map<String, dynamic>;
@@ -842,11 +671,22 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     final Animation<double> animation = CurvedAnimation(
       parent: _listAnimationController,
       curve: Interval(
-        (index * 0.08).clamp(0.0, 0.8),
-        ((index * 0.08) + 0.4).clamp(0.2, 1.0),
+        (index * 0.07).clamp(0.0, 0.75),
+        ((index * 0.07) + 0.45).clamp(0.1, 1.0),
         curve: Curves.easeOutCubic,
       ),
     );
+
+    // Discount calculation
+    final bool hasDiscount =
+        item['originalPrice'] != null &&
+        item['originalPrice'] != item['discountedPrice'];
+    final int discountPercent = hasDiscount
+        ? (((item['originalPrice'] - item['discountedPrice']) /
+                      item['originalPrice']) *
+                  100)
+              .round()
+        : 0;
 
     return AnimatedBuilder(
       animation: animation,
@@ -854,7 +694,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
         opacity: animation,
         child: SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(0, 0.2),
+            begin: const Offset(0, 0.15),
             end: Offset.zero,
           ).animate(animation),
           child: child,
@@ -864,249 +704,188 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.055),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.025),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Left: Details ──────────────────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Diet indicator
-                    if (!isSupermarket)
-                      Row(
-                        children: [
-                          Container(
-                            width: 14,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: isVeg
-                                    ? const Color(0xFF2E7D32)
-                                    : const Color(0xFFD32F2F),
-                                width: 1.8,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Left: Details ────────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Diet indicator
+                        if (!isSupermarket) ...[
+                          _DietIndicator(isVeg: isVeg),
+                          const SizedBox(height: 9),
+                        ],
+
+                        // Item name
+                        Text(
+                          item['name'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111111),
+                            height: 1.25,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Price row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              '₹${item['discountedPrice']}',
+                              style: TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                color: primaryGreen,
+                                height: 1,
+                                letterSpacing: -0.5,
                               ),
-                              borderRadius: BorderRadius.circular(3),
                             ),
-                            child: Center(
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: isVeg
-                                      ? const Color(0xFF2E7D32)
-                                      : const Color(0xFFD32F2F),
-                                  shape: BoxShape.circle,
+                            if (hasDiscount) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '₹${item['originalPrice']}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[400],
+                                  decoration: TextDecoration.lineThrough,
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isVeg ? 'Veg' : 'Non-Veg',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: isVeg
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFFD32F2F),
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                    if (!isSupermarket) const SizedBox(height: 8),
-
-                    // Item name
-                    Text(
-                      item['name'],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
-                        height: 1.2,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Price row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          '₹',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: primaryGreen,
-                          ),
-                        ),
-                        Text(
-                          '${item['discountedPrice']}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: primaryGreen,
-                            height: 1,
-                          ),
-                        ),
-                        if (item['originalPrice'] != null &&
-                            item['originalPrice'] !=
-                                item['discountedPrice']) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            '₹${item['originalPrice']}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[400],
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE0E0),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${(((item['originalPrice'] - item['discountedPrice']) / item['originalPrice']) * 100).round()}% OFF',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFD32F2F),
+                              const SizedBox(width: 7),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFE8E8),
+                                  borderRadius: BorderRadius.circular(7),
+                                ),
+                                child: Text(
+                                  '$discountPercent% OFF',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFD32F2F),
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                          ],
+                        ),
+
+                        const SizedBox(height: 11),
+
+                        // Expiry badge
+                        _ExpiryBadge(
+                          expiryDate: item['expiryDate'],
+                          expiryTime: item['expiryTime'],
+                        ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 10),
+                  const SizedBox(width: 14),
 
-                    // Expiry badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3F3),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.red.withOpacity(0.15),
-                          width: 1,
+                  // ── Right: Image + Controls ──────────────────────────
+                  SizedBox(
+                    width: 108,
+                    child: Column(
+                      children: [
+                        // Item image
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Stack(
+                            children: [
+                              (item['imageUrl'] != null &&
+                                      item['imageUrl'] != "")
+                                  ? Image.network(
+                                      item['imageUrl'],
+                                      width: 108,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _PlaceholderImage(
+                                            size: 108,
+                                            height: 92,
+                                          ),
+                                    )
+                                  : _PlaceholderImage(size: 108, height: 92),
+                            ],
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.schedule_rounded,
-                            size: 11,
-                            color: Colors.red.shade600,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "Exp: ${item['expiryDate']} · ${item['expiryTime']}",
-                            style: TextStyle(
-                              color: Colors.red.shade600,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(width: 14),
+                        const SizedBox(height: 10),
 
-              // ── Right: Image + Add/Remove ──────────────────────────────
-              SizedBox(
-                width: 108,
-                child: Column(
-                  children: [
-                    // Item image
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child:
-                          (item['imageUrl'] != null && item['imageUrl'] != "")
-                          ? Image.network(
-                              item['imageUrl'],
-                              width: 108,
-                              height: 90,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              width: 108,
-                              height: 90,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(16),
+                        // Add / Qty Controls
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 320),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: ScaleTransition(
+                                  scale: CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOutBack,
+                                  ),
+                                  child: child,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.fastfood_rounded,
-                                color: Colors.grey[350],
-                                size: 32,
-                              ),
-                            ),
+                          child: currentQty == 0
+                              ? _AddButton(
+                                  key: const ValueKey('add'),
+                                  primaryGreen: primaryGreen,
+                                  onTap: () => _updateCart(doc, 1),
+                                )
+                              : _QtyControls(
+                                  key: const ValueKey('controls'),
+                                  qty: currentQty,
+                                  primaryGreen: primaryGreen,
+                                  onDecrement: () => _updateCart(doc, -1),
+                                  onIncrement: () => _updateCart(doc, 1),
+                                ),
+                        ),
+                      ],
                     ),
-
-                    const SizedBox(height: 10),
-
-                    // Add / Qty Controls
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: ScaleTransition(scale: animation, child: child),
-                      ),
-                      child: currentQty == 0
-                          ? _AddButton(
-                              key: const ValueKey('add'),
-                              primaryGreen: primaryGreen,
-                              onTap: () => _updateCart(doc, 1),
-                            )
-                          : _QtyControls(
-                              key: const ValueKey('controls'),
-                              qty: currentQty,
-                              primaryGreen: primaryGreen,
-                              onDecrement: () => _updateCart(doc, -1),
-                              onIncrement: () => _updateCart(doc, 1),
-                            ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── Reviews Section (ENHANCED) ────────────────────────────────────────────
+  // ── Reviews Section ────────────────────────────────────────────────────────
 
   Widget _buildReviewsSection() {
     return StreamBuilder<QuerySnapshot>(
@@ -1114,41 +893,24 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
           .collection('reviews')
           .where('shopId', isEqualTo: widget.shopId)
           .snapshots(),
-
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.all(32),
             child: Center(
-              child: CircularProgressIndicator(color: Color(0xFF00bf63)),
+              child: CircularProgressIndicator(
+                color: Color(0xFF00bf63),
+                strokeWidth: 2.5,
+              ),
             ),
           );
         }
 
-        // Section header widget
         Widget sectionHeader = Padding(
-          padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: primaryGreen,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'RATINGS & REVIEWS',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.grey[700],
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(20, 36, 20, 18),
+          child: _SectionTitle(
+            label: 'RATINGS & REVIEWS',
+            primaryGreen: primaryGreen,
           ),
         );
 
@@ -1159,18 +921,18 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
               sectionHeader,
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
+                  horizontal: 16,
+                  vertical: 4,
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.04),
-                        blurRadius: 12,
+                        blurRadius: 14,
                         offset: const Offset(0, 4),
                       ),
                     ],
@@ -1178,10 +940,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(13),
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           Icons.rate_review_outlined,
@@ -1207,7 +969,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
         }
 
         final docs = snapshot.data!.docs.toList();
-
         docs.sort((a, b) {
           final dataA = a.data() as Map<String, dynamic>;
           final dataB = b.data() as Map<String, dynamic>;
@@ -1245,41 +1006,51 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
             // ── Rating Summary Card ──────────────────────────────────────
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(26),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(0.055),
                     blurRadius: 20,
-                    offset: const Offset(0, 4),
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Score
+                  // Score circle
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 80,
-                        height: 80,
+                        width: 82,
+                        height: 82,
                         decoration: BoxDecoration(
-                          color: primaryGreen.withOpacity(0.08),
+                          gradient: RadialGradient(
+                            colors: [
+                              primaryGreen.withOpacity(0.15),
+                              primaryGreen.withOpacity(0.05),
+                            ],
+                          ),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: primaryGreen.withOpacity(0.2),
+                            width: 1.5,
+                          ),
                         ),
                         child: Center(
                           child: Text(
                             averageRating.toStringAsFixed(1),
                             style: TextStyle(
-                              fontSize: 30,
+                              fontSize: 28,
                               fontWeight: FontWeight.w900,
                               color: primaryGreen,
                               height: 1,
+                              letterSpacing: -1,
                             ),
                           ),
                         ),
@@ -1293,11 +1064,11 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                                 ? Icons.star_rounded
                                 : Icons.star_outline_rounded,
                             color: primaryGreen,
-                            size: 14,
+                            size: 13,
                           );
                         }),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       Text(
                         "$totalReviews review${totalReviews == 1 ? '' : 's'}",
                         style: TextStyle(
@@ -1322,18 +1093,21 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                             : 0.0;
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          padding: const EdgeInsets.symmetric(vertical: 4.5),
                           child: Row(
                             children: [
-                              Text(
-                                starLevel.toString(),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black54,
+                              SizedBox(
+                                width: 12,
+                                child: Text(
+                                  starLevel.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black54,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Icon(
                                 Icons.star_rounded,
                                 size: 11,
@@ -1342,20 +1116,29 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: LinearProgressIndicator(
-                                    value: percent,
-                                    backgroundColor: Colors.grey[100],
-                                    minHeight: 7,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      primaryGreen,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: TweenAnimationBuilder<double>(
+                                    tween: Tween(begin: 0, end: percent),
+                                    duration: Duration(
+                                      milliseconds: 600 + (index * 100),
                                     ),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (_, value, __) =>
+                                        LinearProgressIndicator(
+                                          value: value,
+                                          backgroundColor: Colors.grey[100],
+                                          minHeight: 8,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                primaryGreen,
+                                              ),
+                                        ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               SizedBox(
-                                width: 20,
+                                width: 22,
                                 child: Text(
                                   count.toString(),
                                   style: TextStyle(
@@ -1378,10 +1161,10 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
             // ── Review Cards ─────────────────────────────────────────────
             if (reviewDocsWithComments.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               ListView.separated(
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: reviewDocsWithComments.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -1408,13 +1191,13 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: Colors.grey.shade100, width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withOpacity(0.035),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -1426,7 +1209,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                           children: [
                             Row(
                               children: [
-                                // Rating pill
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -1455,10 +1237,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                                     ],
                                   ),
                                 ),
-
                                 const SizedBox(width: 10),
-
-                                // Verified badge
                                 Row(
                                   children: [
                                     Icon(
@@ -1479,7 +1258,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                                 ),
                               ],
                             ),
-
                             if (dateStr.isNotEmpty)
                               Text(
                                 dateStr,
@@ -1491,7 +1269,6 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                               ),
                           ],
                         ),
-
                         if (comment.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Text(
@@ -1499,7 +1276,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                             style: const TextStyle(
                               fontSize: 13.5,
                               color: Color(0xFF444444),
-                              height: 1.55,
+                              height: 1.6,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -1519,7 +1296,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F9),
+      backgroundColor: const Color(0xFFF5F6F8),
       body: Stack(
         children: [
           StreamBuilder<QuerySnapshot>(
@@ -1549,161 +1326,523 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                     matchesDiet;
               }).toList();
 
-              if (docs.isEmpty) {
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(child: _buildRestaurantHeader(context)),
-                    const SliverFillRemaining(
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildRestaurantHeader(context)),
+
+                  if (_resolvedShopData['category'] != 'Supermarket')
+                    SliverToBoxAdapter(child: _buildDietFilter()),
+
+                  if (docs.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.no_food_rounded,
-                              size: 56,
-                              color: Color(0xFFCCCCCC),
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.no_food_rounded,
+                                size: 44,
+                                color: Color(0xFFCCCCCC),
+                              ),
                             ),
-                            SizedBox(height: 14),
-                            Text(
-                              "No items available right now.",
+                            const SizedBox(height: 16),
+                            const Text(
+                              "No items available right now",
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: Color(0xFF888888),
                                 fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Check back soon!",
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }
-
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(child: _buildRestaurantHeader(context)),
-
-                  // Diet filter
-                  if (_resolvedShopData['category'] != 'Supermarket')
-                    SliverToBoxAdapter(child: _buildDietFilter()),
-
-                  // Food items list
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) =>
-                            _buildFoodItemCard(docs[index], index),
-                        childCount: docs.length,
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) =>
+                              _buildFoodItemCard(docs[index], index),
+                          childCount: docs.length,
+                        ),
                       ),
                     ),
-                  ),
 
                   SliverToBoxAdapter(child: _buildReviewsSection()),
-                  const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 130)),
                 ],
               );
             },
           ),
 
-          // ── Floating Cart Bottom Bar (UNTOUCHED) ──────────────────────
-          if (_cart.isNotEmpty)
-            Positioned(
-              bottom: 24,
-              left: 20,
-              right: 20,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeOutBack,
-                builder: (context, value, child) {
-                  return Transform.scale(scale: value, child: child);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
+          // ── Floating Cart Bar ──────────────────────────────────────────
+          Positioned(
+            bottom: 24,
+            left: 16,
+            right: 16,
+            child: AnimatedBuilder(
+              animation: _cartBarAnimationController,
+              builder: (context, child) {
+                final value = CurvedAnimation(
+                  parent: _cartBarAnimationController,
+                  curve: Curves.easeOutBack,
+                ).value;
+                return Transform.scale(
+                  scale: value.clamp(0.0, 1.0),
+                  alignment: Alignment.bottomCenter,
+                  child: Opacity(
+                    opacity: _cartBarAnimationController.value.clamp(0.0, 1.0),
+                    child: child,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "${_getTotalItems()} ITEM${_getTotalItems() > 1 ? 'S' : ''}",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "₹${_getTotalPrice()}",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton(
-                        onPressed: () => _handleCheckout(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Checkout",
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(width: 6),
-                            Icon(Icons.arrow_forward_rounded, size: 18),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                );
+              },
+              child: _cart.isNotEmpty
+                  ? _CartBar(
+                      totalItems: _getTotalItems(),
+                      totalPrice: _getTotalPrice(),
+                      primaryGreen: primaryGreen,
+                      onCheckout: () => _handleCheckout(context),
+                    )
+                  : const SizedBox.shrink(),
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ── Add Button Widget ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Extracted Reusable Widgets ────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SectionTitle extends StatelessWidget {
+  final String label;
+  final Color primaryGreen;
+
+  const _SectionTitle({required this.label, required this.primaryGreen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+            color: Colors.grey[600],
+            letterSpacing: 2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RatingBadge extends StatelessWidget {
+  final String rating;
+  final Color primaryGreen;
+
+  const _RatingBadge({required this.rating, required this.primaryGreen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: primaryGreen,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: primaryGreen.withOpacity(0.45),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 5),
+          Text(
+            rating,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  final String address;
+  final String mapUrl;
+  final Color primaryGreen;
+
+  const _AddressCard({
+    required this.address,
+    required this.mapUrl,
+    required this.primaryGreen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: mapUrl.isNotEmpty
+          ? () async {
+              final Uri url = Uri.parse(mapUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.grey.withOpacity(0.1), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.045),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.09),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                Icons.location_on_rounded,
+                size: 22,
+                color: primaryGreen,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'LOCATION',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey[400],
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    address,
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 13.5,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (mapUrl.isNotEmpty) ...[
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.09),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.directions_rounded,
+                  size: 17,
+                  color: primaryGreen,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DietIndicator extends StatelessWidget {
+  final bool isVeg;
+
+  const _DietIndicator({required this.isVeg});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = isVeg
+        ? const Color(0xFF2E7D32)
+        : const Color(0xFFD32F2F);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 15,
+          height: 15,
+          decoration: BoxDecoration(
+            border: Border.all(color: color, width: 1.8),
+            borderRadius: BorderRadius.circular(3.5),
+          ),
+          child: Center(
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          isVeg ? 'Veg' : 'Non-Veg',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: color,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExpiryBadge extends StatelessWidget {
+  final dynamic expiryDate;
+  final dynamic expiryTime;
+
+  const _ExpiryBadge({required this.expiryDate, required this.expiryTime});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF2F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.withOpacity(0.12), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded, size: 11, color: Colors.red.shade600),
+          const SizedBox(width: 4),
+          Text(
+            "Exp: $expiryDate · $expiryTime",
+            style: TextStyle(
+              color: Colors.red.shade600,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceholderImage extends StatelessWidget {
+  final double size;
+  final double height;
+
+  const _PlaceholderImage({required this.size, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
+    );
+  }
+}
+
+class _CartBar extends StatelessWidget {
+  final int totalItems;
+  final double totalPrice;
+  final Color primaryGreen;
+  final VoidCallback onCheckout;
+
+  const _CartBar({
+    required this.totalItems,
+    required this.totalPrice,
+    required this.primaryGreen,
+    required this.onCheckout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        transitionBuilder: (child, anim) =>
+                            ScaleTransition(scale: anim, child: child),
+                        child: Text(
+                          '$totalItems',
+                          key: ValueKey(totalItems),
+                          style: TextStyle(
+                            color: primaryGreen,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "ITEM${totalItems > 1 ? 'S' : ''} ADDED",
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white54,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        transitionBuilder: (child, anim) =>
+                            FadeTransition(opacity: anim, child: child),
+                        child: Text(
+                          '₹${totalPrice % 1 == 0 ? totalPrice.toInt() : totalPrice.toStringAsFixed(2)}',
+                          key: ValueKey(totalPrice),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: onCheckout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 13,
+                  ),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Checkout",
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Add Button ────────────────────────────────────────────────────────────────
 
 class _AddButton extends StatelessWidget {
   final Color primaryGreen;
@@ -1725,13 +1864,13 @@ class _AddButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(13),
           border: Border.all(color: primaryGreen, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: primaryGreen.withOpacity(0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: primaryGreen.withOpacity(0.14),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -1746,7 +1885,7 @@ class _AddButton extends StatelessWidget {
                 color: primaryGreen,
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                letterSpacing: 0.5,
+                letterSpacing: 0.6,
               ),
             ),
           ],
@@ -1756,7 +1895,7 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-// ── Qty Controls Widget ───────────────────────────────────────────────────────
+// ── Qty Controls ──────────────────────────────────────────────────────────────
 
 class _QtyControls extends StatelessWidget {
   final int qty;
@@ -1778,12 +1917,12 @@ class _QtyControls extends StatelessWidget {
       height: 38,
       decoration: BoxDecoration(
         color: primaryGreen,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(13),
         boxShadow: [
           BoxShadow(
-            color: primaryGreen.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: primaryGreen.withOpacity(0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1794,18 +1933,20 @@ class _QtyControls extends StatelessWidget {
             onTap: onDecrement,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Icons.remove_rounded, color: Colors.white, size: 18),
+              child: Icon(Icons.remove_rounded, color: Colors.white, size: 17),
             ),
           ),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            transitionBuilder: (child, anim) =>
-                ScaleTransition(scale: anim, child: child),
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, anim) => ScaleTransition(
+              scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+              child: child,
+            ),
             child: Text(
               "$qty",
               key: ValueKey(qty),
               style: const TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
                 fontSize: 15,
                 color: Colors.white,
               ),
@@ -1815,7 +1956,7 @@ class _QtyControls extends StatelessWidget {
             onTap: onIncrement,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Icons.add_rounded, color: Colors.white, size: 18),
+              child: Icon(Icons.add_rounded, color: Colors.white, size: 17),
             ),
           ),
         ],
@@ -1824,7 +1965,7 @@ class _QtyControls extends StatelessWidget {
   }
 }
 
-// ── Image Slideshow Widget (UNTOUCHED) ────────────────────────────────────────
+// ── Image Slideshow ───────────────────────────────────────────────────────────
 
 class _ShopImageSlideshow extends StatefulWidget {
   final List<String> images;
@@ -1905,7 +2046,7 @@ class _ShopImageSlideshowState extends State<_ShopImageSlideshow> {
               return Image.network(widget.images[index], fit: BoxFit.cover);
             },
           ),
-          // Clean dots indicator
+          // Dots indicator
           Positioned(
             bottom: 50,
             child: Row(
@@ -1913,14 +2054,15 @@ class _ShopImageSlideshowState extends State<_ShopImageSlideshow> {
               children: List.generate(
                 widget.images.length,
                 (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentPage == index ? 20 : 6,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 3.5),
+                  width: _currentPage == index ? 22 : 6,
                   height: 6,
                   decoration: BoxDecoration(
                     color: _currentPage == index
                         ? const Color(0xFF00bf63)
-                        : Colors.white.withOpacity(0.4),
+                        : Colors.white.withOpacity(0.45),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
