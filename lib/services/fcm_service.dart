@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:food_now/services/user_service.dart';
 import 'package:food_now/main.dart'; // Import navigatorKey
 import 'package:food_now/screens/shop_menu_screen.dart'; // Target navigation screen
+import 'package:food_now/screens/buyer_orders_screen.dart'; // Added Buyer Orders Screen
 
 class FcmService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -72,6 +73,13 @@ class FcmService {
                 shopName: shopName, // <-- NOW PASSING BOTH REQUIRED PARAMETERS
               ),
             ),
+          );
+        }
+      } else if (type == 'order_cancelled') {
+        // Navigate to the Buyer Orders screen when a cancellation happens
+        if (navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(builder: (context) => const BuyerOrdersScreen()),
           );
         }
       }
