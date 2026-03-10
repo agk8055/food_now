@@ -14,6 +14,7 @@ class SellerInventoryScreen extends StatefulWidget {
 
 class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
   String? _shopCategory;
+  final Color primaryGreen = const Color(0xFF00bf63);
 
   @override
   void initState() {
@@ -25,7 +26,10 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('shops').doc(user.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(user.uid)
+            .get();
         if (doc.exists && mounted) {
           setState(() {
             _shopCategory = doc['category'];
@@ -42,28 +46,48 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Professional off-white
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
-          "Kitchen Inventory",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
+        titleSpacing: 20,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Kitchen Inventory",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 22,
+                letterSpacing: -0.8,
+              ),
+            ),
+            Text(
+              "Manage your live surplus listings",
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        elevation: 0.5,
-        centerTitle: false,
+        elevation: 0,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              backgroundColor: const Color(0xFF00bf63).withOpacity(0.1),
-              child: const Icon(
-                Icons.restaurant_menu,
-                color: Color(0xFF00bf63),
-                size: 20,
+            padding: const EdgeInsets.only(right: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: () {}, // Potential for notifications/history
+                icon: Icon(
+                  Icons.restaurant_menu_rounded,
+                  color: primaryGreen,
+                  size: 22,
+                ),
               ),
             ),
           ),
@@ -78,58 +102,62 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
+                if (snapshot.hasError)
                   return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting)
                   return const Center(child: CustomLoader());
-                }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
                   return _buildEmptyState();
-                }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    100,
+                  ), // Extra bottom padding for FAB
                   itemCount: snapshot.data!.docs.length,
+                  physics: const BouncingScrollPhysics(),
                   itemBuilder: (context, index) {
                     final doc = snapshot.data!.docs[index];
                     final item = doc.data() as Map<String, dynamic>;
-                    final int quantity = item['quantity'] ?? 0;
-                    final String? imageUrl = item['imageUrl'];
 
-                    return _buildInventoryCard(
-                      context,
-                      item,
-                      doc.id,
-                      quantity,
-                      imageUrl,
+                    // Simple entrance animation
+                    return TweenAnimationBuilder(
+                      duration: Duration(milliseconds: 400 + (index * 100)),
+                      tween: Tween<double>(begin: 0, end: 1),
+                      builder: (context, double value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, 20 * (1 - value)),
+                            child: _buildInventoryCard(context, item, doc.id),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
               },
             ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SellerAddItemScreen(),
-            ),
-          );
-        },
-        backgroundColor: const Color(0xFF00bf63),
-        elevation: 2,
-        icon: const Icon(Icons.add_box_rounded, color: Colors.white),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SellerAddItemScreen()),
+        ),
+        backgroundColor: primaryGreen,
+        elevation: 4,
+        highlightElevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
         label: const Text(
-          "ADD NEW ITEM",
+          "ADD ITEM",
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
           ),
         ),
       ),
@@ -140,120 +168,120 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     BuildContext context,
     Map<String, dynamic> item,
     String docId,
-    int quantity,
-    String? imageUrl,
   ) {
-    bool isItemExpired(String? dateStr, String? timeStr) {
-      if (dateStr == null || timeStr == null || dateStr.isEmpty || timeStr.isEmpty) return false;
-      try {
-        DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
-        DateTime time;
-        try {
-          time = DateFormat('h:mm a').parse(timeStr);
-        } catch (e) {
-          try {
-            time = DateFormat('H:mm').parse(timeStr);
-          } catch (e) {
-            time = DateFormat('HH:mm').parse(timeStr);
-          }
-        }
-        DateTime itemExpiry = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-        return DateTime.now().isAfter(itemExpiry);
-      } catch (e) {
-        return false;
-      }
-    }
+    final int quantity = item['quantity'] ?? 0;
+    final String? imageUrl = item['imageUrl'];
 
-    Color statusColor = const Color(0xFF00bf63); // Default Green
+    // Stock Logic
+    bool isExpired = _checkIsExpired(item['expiryDate'], item['expiryTime']);
+    Color statusColor = primaryGreen;
     String statusText = "IN STOCK";
-    bool isExpired = isItemExpired(item['expiryDate'], item['expiryTime']);
 
     if (isExpired) {
       statusColor = Colors.redAccent;
       statusText = "EXPIRED";
     } else if (quantity == 0) {
-      statusColor = Colors.redAccent;
+      statusColor = Colors.orange[800]!;
       statusText = "OUT OF STOCK";
     } else if (quantity < 5) {
-      statusColor = Colors.orangeAccent;
+      statusColor = Colors.amber[700]!;
       statusText = "LOW STOCK";
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[100],
+                // Image Section with Hero-like feel
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: Color(0xFFF1F3F4),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
                     child: (imageUrl != null && imageUrl.isNotEmpty)
                         ? Image.network(
                             imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholderIcon(),
+                            errorBuilder: (c, e, s) => _buildPlaceholderIcon(),
                           )
                         : _buildPlaceholderIcon(),
                   ),
                 ),
                 const SizedBox(width: 16),
-
+                // Content Section
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item['name']?.toString().toUpperCase() ??
+                                  'NEW ITEM',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3,
+                                color: Color(0xFF1A1C1E),
+                              ),
+                            ),
+                          ),
+                          _buildStatusBadge(statusText, statusColor),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
                       Text(
-                        item['name']?.toUpperCase() ?? 'UNKNOWN ITEM',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                          color: Colors.black87,
+                        "Exp: ${item['expiryDate']}",
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Expires: ${item['expiryDate']} | ${item['expiryTime']}",
-                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             "₹${item['discountedPrice']}",
-                            style: const TextStyle(
-                              color: Color(0xFF00bf63),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                            style: TextStyle(
+                              color: primaryGreen,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 22,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            "₹${item['originalPrice']}",
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 13,
-                              decoration: TextDecoration.lineThrough,
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Text(
+                              "₹${item['originalPrice']}",
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 14,
+                                decoration: TextDecoration.lineThrough,
+                              ),
                             ),
                           ),
                         ],
@@ -261,44 +289,25 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
                     ],
                   ),
                 ),
-
+                // Stock Counter
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
                       "$quantity",
                       style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
                         color: statusColor,
-                        height: 1,
+                        height: 1.1,
                       ),
                     ),
-                    const Text(
+                    Text(
                       "UNITS",
                       style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.grey[400],
+                        letterSpacing: 1,
                       ),
                     ),
                   ],
@@ -306,48 +315,32 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
               ],
             ),
           ),
-
+          // Action Buttons
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
+                bottom: Radius.circular(24),
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton.icon(
-                  onPressed: () => _showEditDialog(context, docId, item),
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 18,
-                    color: Color(0xFF00bf63),
-                  ),
-                  label: const Text(
-                    "EDIT STOCK / PRICE",
-                    style: TextStyle(
-                      color: Color(0xFF00bf63),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Expanded(
+                  child: _buildCardButton(
+                    icon: Icons.edit_note_rounded,
+                    label: "MANAGE",
+                    color: primaryGreen,
+                    onTap: () => _showEditDialog(context, docId, item),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () => _confirmDelete(context, docId),
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 18,
+                Container(width: 1, height: 20, color: Colors.grey[200]),
+                Expanded(
+                  child: _buildCardButton(
+                    icon: Icons.delete_outline_rounded,
+                    label: "REMOVE",
                     color: Colors.redAccent,
-                  ),
-                  label: const Text(
-                    "REMOVE",
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    onTap: () => _confirmDelete(context, docId),
                   ),
                 ),
               ],
@@ -356,6 +349,78 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _checkIsExpired(String? dateStr, String? timeStr) {
+    if (dateStr == null || timeStr == null || dateStr.isEmpty) return false;
+    try {
+      DateTime date = DateFormat('yyyy-MM-dd').parse(dateStr);
+      DateTime time;
+      try {
+        time = DateFormat('h:mm a').parse(timeStr);
+      } catch (e) {
+        time = DateFormat('HH:mm').parse(timeStr);
+      }
+      DateTime itemExpiry = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+      return DateTime.now().isAfter(itemExpiry);
+    } catch (e) {
+      return false;
+    }
   }
 
   void _showEditDialog(
@@ -363,185 +428,284 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     String docId,
     Map<String, dynamic> item,
   ) {
-    final TextEditingController stockController = TextEditingController(
+    final stockController = TextEditingController(
       text: item['quantity'].toString(),
     );
-    final TextEditingController priceController = TextEditingController(
+    final priceController = TextEditingController(
       text: item['discountedPrice'].toString(),
     );
-    final TextEditingController expiryDateController = TextEditingController(
+    final expiryDateController = TextEditingController(
       text: item['expiryDate'] ?? '',
     );
-    final TextEditingController expiryTimeController = TextEditingController(
+    final expiryTimeController = TextEditingController(
       text: item['expiryTime'] ?? '',
     );
-
     String currentDietType = item['dietType'] ?? 'Veg';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(
-              "Edit ${item['name']}",
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-            TextField(
-              controller: stockController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Available Stock (Units)",
-                prefixIcon: Icon(Icons.inventory_2_outlined),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Discounted Price (₹)",
-                prefixIcon: Icon(Icons.currency_rupee),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_shopCategory != 'Supermarket') ...[
-              DropdownButtonFormField<String>(
-                initialValue: currentDietType,
-                items: const [
-                  DropdownMenuItem(value: 'Veg', child: Text('Veg')),
-                  DropdownMenuItem(value: 'Non-Veg', child: Text('Non-Veg')),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => currentDietType = val);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: 'Diet Type',
-                  prefixIcon: Icon(
-                    Icons.restaurant_menu,
-                    color: currentDietType == 'Veg' ? Colors.green : Colors.red,
-                  ),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Row(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 30)),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          expiryDateController.text = DateFormat('yyyy-MM-dd').format(picked);
-                        });
-                      }
-                    },
-                    child: IgnorePointer(
-                      child: TextField(
-                        controller: expiryDateController,
-                        decoration: const InputDecoration(
-                          labelText: "Expiry Date",
-                          prefixIcon: Icon(Icons.calendar_today, size: 20),
-                          border: OutlineInputBorder(),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Update Listing",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item['name'] ?? "",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                _buildFieldLabel("INVENTORY & PRICING"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildModernField(
+                        stockController,
+                        "Stock Units",
+                        Icons.inventory_2_outlined,
+                        true,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildModernField(
+                        priceController,
+                        "Sale Price",
+                        Icons.currency_rupee_rounded,
+                        true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (_shopCategory != 'Supermarket') ...[
+                  _buildFieldLabel("DIETARY INFO"),
+                  _buildDietToggle(
+                    currentDietType,
+                    (val) => setModalState(() => currentDietType = val),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                _buildFieldLabel("EXPIRY SCHEDULE"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 30),
+                            ),
+                          );
+                          if (picked != null)
+                            setModalState(
+                              () => expiryDateController.text = DateFormat(
+                                'yyyy-MM-dd',
+                              ).format(picked),
+                            );
+                        },
+                        child: _buildModernField(
+                          expiryDateController,
+                          "Date",
+                          Icons.calendar_today_rounded,
+                          false,
+                          enabled: false,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (picked != null)
+                            setModalState(
+                              () => expiryTimeController.text = picked.format(
+                                context,
+                              ),
+                            );
+                        },
+                        child: _buildModernField(
+                          expiryTimeController,
+                          "Time",
+                          Icons.access_time_rounded,
+                          false,
+                          enabled: false,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryGreen,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      FirebaseFirestore.instance
+                          .collection('food_items')
+                          .doc(docId)
+                          .update({
+                            'quantity':
+                                int.tryParse(stockController.text) ??
+                                item['quantity'],
+                            'discountedPrice':
+                                double.tryParse(priceController.text) ??
+                                item['discountedPrice'],
+                            'expiryDate': expiryDateController.text,
+                            'expiryTime': expiryTimeController.text,
+                            if (_shopCategory != 'Supermarket')
+                              'dietType': currentDietType,
+                          });
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      "SAVE CHANGES",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final TimeOfDay? picked = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          expiryTimeController.text = picked.format(context);
-                        });
-                      }
-                    },
-                    child: IgnorePointer(
-                      child: TextField(
-                        controller: expiryTimeController,
-                        decoration: const InputDecoration(
-                          labelText: "Expiry Time",
-                          prefixIcon: Icon(Icons.access_time, size: 20),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 32),
               ],
             ),
-          ],
+          ),
         ),
-      ),
-      actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              FirebaseFirestore.instance
-                  .collection('food_items')
-                  .doc(docId)
-                  .update({
-                    'quantity':
-                        int.tryParse(stockController.text) ?? item['quantity'],
-                    'discountedPrice':
-                        double.tryParse(priceController.text) ??
-                        item['discountedPrice'],
-                    'expiryDate': expiryDateController.text,
-                    'expiryTime': expiryTimeController.text,
-                    if (_shopCategory != 'Supermarket') 'dietType': currentDietType,
-                  });
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00bf63),
-            ),
-            child: const Text(
-              "UPDATE",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      );
-      },
       ),
     );
   }
 
-  Widget _buildPlaceholderIcon() {
-    return const Icon(
-      Icons.fastfood_rounded,
-      color: Color(0xFFBDBDBD),
-      size: 30,
+  Widget _buildFieldLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, left: 4),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Colors.grey[500],
+          letterSpacing: 1,
+        ),
+      ),
     );
   }
+
+  Widget _buildModernField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+    bool isNumber, {
+    bool enabled = true,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20, color: primaryGreen),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildDietToggle(String current, Function(String) onChanged) {
+    return Row(
+      children: ['Veg', 'Non-Veg'].map((type) {
+        bool isSelected = current == type;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(type),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: EdgeInsets.only(right: type == 'Veg' ? 12 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (type == 'Veg' ? Colors.green[50] : Colors.red[50])
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? (type == 'Veg' ? Colors.green : Colors.red)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  type,
+                  style: TextStyle(
+                    color: isSelected
+                        ? (type == 'Veg' ? Colors.green[700] : Colors.red[700])
+                        : Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPlaceholderIcon() =>
+      Icon(Icons.fastfood_rounded, color: Colors.grey[300], size: 30);
 
   Widget _buildEmptyState() {
     return Center(
@@ -549,30 +713,41 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Colors.white,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                ),
+              ],
             ),
             child: Icon(
-              Icons.inventory_2_outlined,
-              size: 64,
-              color: Colors.grey[300],
+              Icons.inventory_2_rounded,
+              size: 80,
+              color: primaryGreen.withOpacity(0.2),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           const Text(
-            "Inventory is Empty",
+            "No Surplus Listed",
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1A1C1E),
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            "Start listing items to see them here.",
-            style: TextStyle(color: Colors.grey),
+          const SizedBox(height: 12),
+          Text(
+            "Help reduce waste by listing\nyour unsold food items today.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 15,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -583,17 +758,33 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Remove Item?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text(
+          "Remove Item?",
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
         content: const Text(
-          "This action will immediately stop buyers from seeing this surplus listing.",
+          "This listing will be immediately hidden from buyers. This action cannot be undone.",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+            child: Text(
+              "KEEP IT",
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[50],
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: () {
               FirebaseFirestore.instance
                   .collection('food_items')
@@ -602,11 +793,8 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
               Navigator.pop(context);
             },
             child: const Text(
-              "CONFIRM REMOVAL",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
+              "REMOVE",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900),
             ),
           ),
         ],
