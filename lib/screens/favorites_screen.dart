@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../widgets/custom_loader.dart';
 import '../widgets/shop_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -12,6 +13,52 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
+  GeoPoint? _userLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserLocation();
+  }
+
+  Future<void> _fetchUserLocation() async {
+    try {
+      final User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          final location = data['location'] as Map<String, dynamic>?;
+          if (location != null && location['geopoint'] != null) {
+            if (mounted) {
+              setState(() {
+                _userLocation = location['geopoint'] as GeoPoint;
+              });
+            }
+            return;
+          }
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final double? lat = prefs.getDouble('cached_geopoint_lat');
+      final double? lon = prefs.getDouble('cached_geopoint_lon');
+
+      if (lat != null && lon != null) {
+        if (mounted) {
+          setState(() {
+            _userLocation = GeoPoint(lat, lon);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching user location: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -87,10 +134,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   Text(
                     "Tap the heart icon on restaurants you love\nto see them here.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -126,11 +170,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
+                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
                         "Favorites not found",
@@ -144,10 +184,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       Text(
                         "Some restaurants might be temporarily unavailable.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                       ),
                     ],
                   ),
@@ -164,6 +201,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   return ShopCard(
                     shopId: shop.id,
                     data: data,
+                    userLocation: _userLocation,
                     defaultIcon: Icons.restaurant,
                     defaultCategory: "Restaurant",
                   );

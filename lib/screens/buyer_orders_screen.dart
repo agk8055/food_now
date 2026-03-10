@@ -1,9 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart'; // Added QR package
+import 'package:qr_flutter/qr_flutter.dart';
 import '../widgets/custom_loader.dart';
 import 'package:intl/intl.dart';
+
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+class _C {
+  static const Color primary = Color(0xFF00BF63);
+  static const Color primaryLight = Color(0xFFE8FAF2);
+  static const Color primaryMid = Color(0xFFB8F0D8);
+  static const Color bg = Color(0xFFF9FAFB);
+  static const Color surface = Colors.white;
+  static const Color textPrimary = Color(0xFF0D1117);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textTertiary = Color(0xFFB0B7C3);
+  static const Color border = Color(0xFFF0F1F3);
+  static const Color borderMid = Color(0xFFE5E7EB);
+  static const Color cancelRed = Color(0xFFEF4444);
+  static const Color cancelRedLight = Color(0xFFFEF2F2);
+  static const Color pendingAmber = Color(0xFFF59E0B);
+  static const Color pendingAmberLight = Color(0xFFFFFBEB);
+}
 
 class BuyerOrdersScreen extends StatelessWidget {
   const BuyerOrdersScreen({super.key});
@@ -13,37 +31,65 @@ class BuyerOrdersScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: _C.bg,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           SliverAppBar(
             automaticallyImplyLeading: false,
-            expandedHeight: 100,
+            expandedHeight: 110,
             floating: false,
             pinned: true,
             elevation: 0,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            shadowColor: Colors.black.withOpacity(0.08),
-            iconTheme: const IconThemeData(color: Colors.black),
+            scrolledUnderElevation: 0.5,
+            backgroundColor: _C.surface,
+            surfaceTintColor: _C.surface,
+            shadowColor: Colors.black.withOpacity(0.06),
+            iconTheme: const IconThemeData(color: _C.textPrimary),
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(
-                left: 20,
-                bottom: 16,
-                right: 20,
-              ),
-              title: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: 1.0,
-                child: const Text(
-                  "Your Orders",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
-                    letterSpacing: -0.5,
+              titlePadding: const EdgeInsets.only(left: 22, bottom: 18, right: 22),
+              title: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "YOUR ORDERS",
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: _C.primary,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          "Order History",
+                          style: TextStyle(
+                            color: _C.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _C.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: _C.primary,
+                      size: 18,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -73,7 +119,7 @@ class BuyerOrdersScreen extends StatelessWidget {
                     duration: const Duration(milliseconds: 400),
                     child: ListView.builder(
                       key: ValueKey(docs.length),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
                         final doc = docs[index];
@@ -94,37 +140,39 @@ class BuyerOrdersScreen extends StatelessWidget {
 
   Widget _buildLoggedOutState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: _C.primaryLight,
+                shape: BoxShape.circle,
+                border: Border.all(color: _C.primaryMid, width: 2),
+              ),
+              child: const Icon(Icons.lock_outline_rounded, size: 36, color: _C.primary),
             ),
-            child: Icon(
-              Icons.lock_outline_rounded,
-              size: 36,
-              color: Colors.grey[400],
+            const SizedBox(height: 24),
+            const Text(
+              "Not Logged In",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+                color: _C.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "You're not logged in",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
+            const SizedBox(height: 8),
+            Text(
+              "Please log in to view your orders.",
+              style: TextStyle(color: _C.textSecondary, fontSize: 14, height: 1.5),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Please log in to view your orders.",
-            style: TextStyle(color: Colors.grey[500], fontSize: 14),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -136,17 +184,29 @@ class BuyerOrdersScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: Colors.red[300]),
-            const SizedBox(height: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: _C.cancelRedLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded, size: 38, color: _C.cancelRed),
+            ),
+            const SizedBox(height: 20),
             const Text(
               'Something went wrong',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: _C.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              style: TextStyle(color: _C.textSecondary, fontSize: 13, height: 1.5),
             ),
           ],
         ),
@@ -161,36 +221,50 @@ class BuyerOrdersScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.receipt_long_outlined,
-                size: 46,
-                color: Colors.grey[300],
-              ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: _C.primaryLight,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: _C.primaryMid,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long_outlined,
+                    size: 38,
+                    color: _C.primary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             const Text(
               "No orders yet",
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
+                letterSpacing: -0.5,
+                color: _C.textPrimary,
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              "When you reserve surplus food,\nit will appear here.",
+              "When you reserve surplus food,\nyour orders will appear here.",
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.grey[500],
+                color: _C.textSecondary,
                 fontSize: 15,
-                height: 1.5,
+                height: 1.6,
               ),
             ),
           ],
@@ -200,6 +274,7 @@ class BuyerOrdersScreen extends StatelessWidget {
   }
 }
 
+// ─── Animated Card Wrapper ────────────────────────────────────────────────────
 class _AnimatedOrderCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final String orderId;
@@ -226,15 +301,15 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 550),
     );
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.12),
+      begin: const Offset(0, 0.1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
-    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+    Future.delayed(Duration(milliseconds: 55 * widget.index), () {
       if (mounted) _controller.forward();
     });
   }
@@ -257,91 +332,205 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
+// ─── Order Card ───────────────────────────────────────────────────────────────
 class _OrderCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final String orderId;
 
   const _OrderCard({required this.data, required this.orderId});
 
-  // --- Show QR Code Dialog ---
   void _showQRCode(BuildContext context, String orderId, String otp) {
-    // We encode a specific string format so the scanner knows it's valid
     final qrData = "foodnow_pickup:$orderId:$otp";
 
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          contentPadding: const EdgeInsets.all(32),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Show to Seller",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Scan this QR code to confirm pickup",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[500], fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: RepaintBoundary(
-                  child: QrImageView(
-                    data: qrData,
-                    version: QrVersions.auto,
-                    size: 200.0,
-                    backgroundColor: Colors.white,
-                    semanticsLabel: 'Order QR Code',
+      barrierDismissible: true,
+      barrierLabel: 'QR Code',
+      barrierColor: Colors.black.withOpacity(0.6),
+      transitionDuration: const Duration(milliseconds: 380),
+      transitionBuilder: (ctx, anim, _, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutExpo);
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+      pageBuilder: (ctx, _, __) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 28),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: _C.primary.withOpacity(0.12),
+                    blurRadius: 60,
+                    spreadRadius: -5,
+                    offset: const Offset(0, 20),
                   ),
-                ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              Text(
-                "OTP: $otp",
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 4,
-                  color: Color(0xFF00bf63),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "CLOSE",
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                    decoration: BoxDecoration(
+                      color: _C.primaryLight,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: _C.primary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: const Icon(Icons.qr_code_2_rounded, color: _C.primary, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Pickup QR Code",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: _C.textPrimary,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            Text(
+                              "Show to seller to confirm pickup",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _C.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                    child: Column(
+                      children: [
+                        // QR Code — transparent bg, green, rounded
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _C.primary.withOpacity(0.15),
+                                blurRadius: 30,
+                                spreadRadius: -5,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: RepaintBoundary(
+                              child: QrImageView(
+                                data: qrData,
+                                version: QrVersions.auto,
+                                size: 210.0,
+                                backgroundColor: Colors.transparent,
+                                eyeStyle: const QrEyeStyle(
+                                  eyeShape: QrEyeShape.circle,
+                                  color: _C.primary,
+                                ),
+                                dataModuleStyle: const QrDataModuleStyle(
+                                  dataModuleShape: QrDataModuleShape.circle,
+                                  color: _C.primary,
+                                ),
+                                semanticsLabel: 'Order QR Code',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // OTP
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: _C.primaryLight,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _C.primaryMid, width: 1.5),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                "ONE-TIME PASSWORD",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: _C.primary.withOpacity(0.6),
+                                  letterSpacing: 2.2,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                otp,
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 10,
+                                  color: _C.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Close
+                        GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: _C.bg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: _C.borderMid),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                "CLOSE",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _C.textSecondary,
+                                  letterSpacing: 1.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         );
       },
     );
@@ -361,76 +550,87 @@ class _OrderCard extends StatelessWidget {
       formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(date);
     }
 
+    // Status config
     Color statusColor;
+    Color statusBg;
     String statusText;
     IconData statusIcon;
     if (status == 'completed') {
-      statusColor = const Color(0xFF00bf63);
+      statusColor = _C.primary;
+      statusBg = _C.primaryLight;
       statusText = "COMPLETED";
       statusIcon = Icons.check_circle_rounded;
     } else if (status == 'cancelled') {
-      statusColor = Colors.redAccent;
+      statusColor = _C.cancelRed;
+      statusBg = _C.cancelRedLight;
       statusText = "CANCELLED";
       statusIcon = Icons.cancel_rounded;
     } else {
-      statusColor = Colors.orange;
+      statusColor = _C.pendingAmber;
+      statusBg = _C.pendingAmberLight;
       statusText = "PENDING PICKUP";
       statusIcon = Icons.access_time_rounded;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: _C.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _C.border, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
             offset: const Offset(0, 6),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+            color: statusColor.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Color accent bar ──
             AnimatedContainer(
               duration: const Duration(milliseconds: 400),
-              height: 4,
+              height: 3,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [statusColor, statusColor.withOpacity(0.5)],
+                  colors: [statusColor, statusColor.withOpacity(0.3)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
               ),
             ),
+
+            // ── Card Header ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              padding: const EdgeInsets.fromLTRB(18, 16, 16, 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Shop icon
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00bf63).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
+                      color: _C.primaryLight,
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(color: _C.primaryMid, width: 1),
                     ),
                     child: const Icon(
                       Icons.storefront_rounded,
-                      color: Color(0xFF00bf63),
+                      color: _C.primary,
                       size: 22,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,26 +638,22 @@ class _OrderCard extends StatelessWidget {
                         Text(
                           shopName,
                           style: const TextStyle(
-                            fontSize: 17,
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.3,
-                            color: Colors.black87,
+                            color: _C.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(
-                              Icons.schedule_rounded,
-                              size: 12,
-                              color: Colors.grey[400],
-                            ),
+                            Icon(Icons.schedule_rounded, size: 11, color: _C.textTertiary),
                             const SizedBox(width: 4),
                             Text(
                               formattedDate,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: _C.textSecondary,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
@@ -466,16 +662,14 @@ class _OrderCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Status pill
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.25),
+                        color: statusColor.withOpacity(0.2),
                         width: 1,
                       ),
                     ),
@@ -488,9 +682,9 @@ class _OrderCard extends StatelessWidget {
                           statusText,
                           style: TextStyle(
                             color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
@@ -499,40 +693,36 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Divider(height: 1, color: Colors.grey[100], thickness: 1),
-            ),
+
+            Divider(height: 1, color: _C.border, thickness: 1, indent: 18, endIndent: 18),
+
+            // ── Cancellation Reason ──
             if (status == 'cancelled' && data['cancelReason'] != null)
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.1)),
+                  color: _C.cancelRedLight,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: _C.cancelRed.withOpacity(0.15)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      color: Colors.redAccent,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.error_outline_rounded, color: _C.cancelRed, size: 16),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "REASON FOR CANCELLATION",
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: Colors.redAccent,
-                              letterSpacing: 0.5,
+                              color: _C.cancelRed.withOpacity(0.7),
+                              letterSpacing: 0.8,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -540,9 +730,9 @@ class _OrderCard extends StatelessWidget {
                             data['cancelReason'],
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[800],
+                              color: _C.cancelRed.withOpacity(0.85),
                               height: 1.4,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -551,66 +741,82 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
+
+            // ── Refund Notice ──
             if (status == 'cancelled')
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00bf63).withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF00bf63).withOpacity(0.1),
-                  ),
+                  color: _C.primaryLight,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: _C.primaryMid, width: 1),
                 ),
                 child: const Row(
                   children: [
-                    Icon(
-                      Icons.currency_rupee_rounded,
-                      color: Color(0xFF00bf63),
-                      size: 16,
-                    ),
+                    Icon(Icons.currency_rupee_rounded, color: _C.primary, size: 15),
                     SizedBox(width: 8),
                     Text(
                       "REFUND INITIATED",
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF00bf63),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: _C.primary,
                         letterSpacing: 0.5,
                       ),
                     ),
+                    Spacer(),
+                    Icon(Icons.check_circle_rounded, color: _C.primary, size: 14),
                   ],
                 ),
               ),
+
+            // ── Order Items ──
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "ORDER ITEMS",
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: Colors.grey[400],
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: _C.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "ORDER ITEMS",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.4,
+                          color: _C.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  ...items.map((item) {
+                  const SizedBox(height: 12),
+                  ...items.asMap().entries.map((entry) {
+                    final item = entry.value;
+                    final isLast = entry.key == items.length - 1;
                     final String itemName = item['name'] ?? 'Item';
                     final int qty = item['cartQuantity'] ?? 1;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 9),
                       child: Row(
                         children: [
                           Container(
-                            width: 28,
-                            height: 28,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(8),
+                              color: _C.primaryLight,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(color: _C.primaryMid, width: 1),
                             ),
                             child: Center(
                               child: Text(
@@ -618,17 +824,17 @@ class _OrderCard extends StatelessWidget {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13,
-                                  color: Colors.black87,
+                                  color: _C.primary,
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Container(
-                            width: 4,
-                            height: 4,
+                            width: 3,
+                            height: 3,
                             decoration: BoxDecoration(
-                              color: Colors.grey[300],
+                              color: _C.textTertiary,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -636,8 +842,8 @@ class _OrderCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               itemName,
-                              style: TextStyle(
-                                color: Colors.grey[800],
+                              style: const TextStyle(
+                                color: _C.textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -650,101 +856,84 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            // ── Footer ──
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                border: Border(
-                  top: BorderSide(color: Colors.grey[100]!, width: 1),
-                ),
+                color: _C.bg,
+                border: Border(top: BorderSide(color: _C.border, width: 1)),
               ),
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Total
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         "TOTAL PAID",
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: Colors.grey[400],
+                          letterSpacing: 1.2,
+                          color: _C.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         "₹${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount}",
                         style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: Colors.black87,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.8,
+                          color: _C.textPrimary,
                         ),
                       ),
                     ],
                   ),
+                  const Spacer(),
 
-                  // --- Updated Footer for QR Code ---
+                  // QR action for pending
                   if (status == 'pending')
                     Row(
                       children: [
-                        // OTP Display
+                        // OTP mini display
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             const Text(
                               "OTP",
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: Colors.grey,
+                                letterSpacing: 1.2,
+                                color: _C.textTertiary,
                               ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               otp,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 2,
-                                color: Colors.black87,
+                                letterSpacing: 3,
+                                color: _C.textPrimary,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 12),
-                        // QR Code Button
-                        ElevatedButton.icon(
-                          onPressed: () => _showQRCode(context, orderId, otp),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00bf63),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                          label: const Text(
-                            "SHOW QR",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
+                        const SizedBox(width: 14),
+
+                        // QR Button
+                        _QRButton(onTap: () => _showQRCode(context, orderId, otp)),
                       ],
                     ),
                 ],
               ),
             ),
-            if (status == 'completed') ...[
+
+            // ── Review Section ──
+            if (status == 'completed')
               FutureBuilder<QuerySnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('reviews')
@@ -754,14 +943,14 @@ class _OrderCard extends StatelessWidget {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.all(14),
                       child: Center(
                         child: SizedBox(
-                          height: 18,
-                          width: 18,
+                          height: 16,
+                          width: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF00bf63),
+                            color: _C.primary,
                           ),
                         ),
                       ),
@@ -772,8 +961,7 @@ class _OrderCard extends StatelessWidget {
                     return const SizedBox();
                   }
 
-                  final reviewData =
-                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  final reviewData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
                   final int rating = reviewData['rating'] ?? 0;
                   final String comment = reviewData['comment'] ?? '';
 
@@ -782,10 +970,8 @@ class _OrderCard extends StatelessWidget {
                     child: Container(
                       key: ValueKey(orderId),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border(
-                          top: BorderSide(color: Colors.grey[100]!, width: 1),
-                        ),
+                        color: _C.surface,
+                        border: Border(top: BorderSide(color: _C.border, width: 1)),
                       ),
                       padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
                       child: Column(
@@ -793,13 +979,22 @@ class _OrderCard extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(
+                              Container(
+                                width: 3,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: _C.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
                                 "YOUR REVIEW",
                                 style: TextStyle(
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.1,
-                                  color: Colors.grey[400],
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.4,
+                                  color: _C.textSecondary,
                                 ),
                               ),
                               const Spacer(),
@@ -808,9 +1003,7 @@ class _OrderCard extends StatelessWidget {
                                   return Padding(
                                     padding: const EdgeInsets.only(left: 2),
                                     child: AnimatedSwitcher(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
+                                      duration: const Duration(milliseconds: 200),
                                       child: Icon(
                                         index < rating
                                             ? Icons.star_rounded
@@ -818,7 +1011,7 @@ class _OrderCard extends StatelessWidget {
                                         key: ValueKey(index < rating),
                                         color: index < rating
                                             ? Colors.amber
-                                            : Colors.grey[300],
+                                            : _C.textTertiary,
                                         size: 18,
                                       ),
                                     ),
@@ -828,14 +1021,14 @@ class _OrderCard extends StatelessWidget {
                             ],
                           ),
                           if (comment.isNotEmpty) ...[
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey[200]!),
+                                color: _C.bg,
+                                borderRadius: BorderRadius.circular(13),
+                                border: Border.all(color: _C.border),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -843,15 +1036,15 @@ class _OrderCard extends StatelessWidget {
                                   Icon(
                                     Icons.format_quote_rounded,
                                     size: 16,
-                                    color: Colors.grey[300],
+                                    color: _C.primary.withOpacity(0.4),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       comment,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.grey[600],
+                                        color: _C.textSecondary,
                                         fontStyle: FontStyle.italic,
                                         height: 1.5,
                                       ),
@@ -867,8 +1060,82 @@ class _OrderCard extends StatelessWidget {
                   );
                 },
               ),
-            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── QR Button with press feedback ───────────────────────────────────────────
+class _QRButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _QRButton({required this.onTap});
+
+  @override
+  State<_QRButton> createState() => _QRButtonState();
+}
+
+class _QRButtonState extends State<_QRButton> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
+    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF00BF63), Color(0xFF009A4F)],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: _C.primary.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 7),
+              Text(
+                "SHOW QR",
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Colors.white,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

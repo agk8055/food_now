@@ -40,13 +40,13 @@ class _SupermartScreenState extends State<SupermartScreen>
       parent: _animationController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
   }
 
   @override
@@ -188,30 +188,26 @@ class _SupermartScreenState extends State<SupermartScreen>
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // ── Result count header ──
-                SliverToBoxAdapter(
-                  child: _buildResultsHeader(shops.length),
-                ),
+                SliverToBoxAdapter(child: _buildResultsHeader(shops.length)),
 
                 // ── Shop list ──
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final shop = shops[index];
-                        final data = shop.data() as Map<String, dynamic>;
-                        return _AnimatedListItem(
-                          index: index,
-                          child: ShopCard(
-                            shopId: shop.id,
-                            data: data,
-                            defaultIcon: Icons.storefront,
-                            defaultCategory: "Supermarket",
-                          ),
-                        );
-                      },
-                      childCount: shops.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final shop = shops[index];
+                      final data = shop.data() as Map<String, dynamic>;
+                      return _AnimatedListItem(
+                        index: index,
+                        child: ShopCard(
+                          shopId: shop.id,
+                          data: data,
+                          userLocation: _userLocation,
+                          defaultIcon: Icons.storefront,
+                          defaultCategory: "Supermarket",
+                        ),
+                      );
+                    }, childCount: shops.length),
                   ),
                 ),
               ],
@@ -285,11 +281,7 @@ class _SupermartScreenState extends State<SupermartScreen>
             const Text(
               'There are no supermarkets within 10 km of your location.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _textMuted,
-                height: 1.5,
-              ),
+              style: TextStyle(fontSize: 14, color: _textMuted, height: 1.5),
             ),
           ],
         ),

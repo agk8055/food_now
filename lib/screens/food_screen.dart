@@ -55,13 +55,13 @@ class _FoodScreenState extends State<FoodScreen>
       parent: _animationController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
   }
 
   @override
@@ -144,68 +144,66 @@ class _FoodScreenState extends State<FoodScreen>
         if (snapshot.hasError) {
           return _buildErrorState(snapshot.error.toString());
         }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        List<QueryDocumentSnapshot> shops = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final category = data['category'] ?? 'Other';
-
-          if (category == 'Supermarket') return false;
-
-          if (_selectedCategory == 'Restaurant' && category != 'Restaurant') {
-            return false;
-          }
-          if (_selectedCategory == 'Bakery & Cafe' && category != 'Bakery') {
-            return false;
-          }
-          if (_selectedCategory == 'Catering' && category != 'Catering') {
-            return false;
-          }
-
-          return true;
-        }).toList();
-
-        if (_userLocation != null) {
-          shops = shops.where((doc) {
+        List<QueryDocumentSnapshot> shops = [];
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          shops = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            final location = data['location'] as Map<String, dynamic>?;
-            if (location == null || location['geopoint'] == null) return false;
+            final category = data['category'] ?? 'Other';
 
-            final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
-            final double distance = Geolocator.distanceBetween(
-              _userLocation!.latitude,
-              _userLocation!.longitude,
-              shopPoint.latitude,
-              shopPoint.longitude,
-            );
-            return distance <= 10000;
+            if (category == 'Supermarket') return false;
+
+            if (_selectedCategory == 'Restaurant' && category != 'Restaurant') {
+              return false;
+            }
+            if (_selectedCategory == 'Bakery & Cafe' && category != 'Bakery') {
+              return false;
+            }
+            if (_selectedCategory == 'Catering' && category != 'Catering') {
+              return false;
+            }
+
+            return true;
           }).toList();
 
-          shops.sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
-            final aLoc = aData['location']['geopoint'] as GeoPoint;
-            final bLoc = bData['location']['geopoint'] as GeoPoint;
+          if (_userLocation != null) {
+            shops = shops.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final location = data['location'] as Map<String, dynamic>?;
+              if (location == null || location['geopoint'] == null)
+                return false;
 
-            final double distA = Geolocator.distanceBetween(
-              _userLocation!.latitude,
-              _userLocation!.longitude,
-              aLoc.latitude,
-              aLoc.longitude,
-            );
-            final double distB = Geolocator.distanceBetween(
-              _userLocation!.latitude,
-              _userLocation!.longitude,
-              bLoc.latitude,
-              bLoc.longitude,
-            );
-            return distA.compareTo(distB);
-          });
+              final GeoPoint shopPoint = location['geopoint'] as GeoPoint;
+              final double distance = Geolocator.distanceBetween(
+                _userLocation!.latitude,
+                _userLocation!.longitude,
+                shopPoint.latitude,
+                shopPoint.longitude,
+              );
+              return distance <= 10000;
+            }).toList();
+
+            shops.sort((a, b) {
+              final aData = a.data() as Map<String, dynamic>;
+              final bData = b.data() as Map<String, dynamic>;
+              final aLoc = aData['location']['geopoint'] as GeoPoint;
+              final bLoc = bData['location']['geopoint'] as GeoPoint;
+
+              final double distA = Geolocator.distanceBetween(
+                _userLocation!.latitude,
+                _userLocation!.longitude,
+                aLoc.latitude,
+                aLoc.longitude,
+              );
+              final double distB = Geolocator.distanceBetween(
+                _userLocation!.latitude,
+                _userLocation!.longitude,
+                bLoc.latitude,
+                bLoc.longitude,
+              );
+              return distA.compareTo(distB);
+            });
+          }
         }
-
-        if (shops.isEmpty) return _buildEmptyState();
 
         return FadeTransition(
           opacity: _fadeAnimation,
@@ -218,16 +216,20 @@ class _FoodScreenState extends State<FoodScreen>
                 SliverToBoxAdapter(child: _buildCategoryBar()),
 
                 // ── Result count chip ──
-                SliverToBoxAdapter(
-                  child: _buildResultsHeader(shops.length),
-                ),
+                if (shops.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildResultsHeader(shops.length)),
 
                 // ── Shop list ──
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
+                if (shops.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
                         final shop = shops[index];
                         final data = shop.data() as Map<String, dynamic>;
                         return _AnimatedListItem(
@@ -235,15 +237,14 @@ class _FoodScreenState extends State<FoodScreen>
                           child: ShopCard(
                             shopId: shop.id,
                             data: data,
+                            userLocation: _userLocation,
                             defaultIcon: Icons.restaurant,
                             defaultCategory: "Restaurant",
                           ),
                         );
-                      },
-                      childCount: shops.length,
+                      }, childCount: shops.length),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -290,7 +291,7 @@ class _FoodScreenState extends State<FoodScreen>
       child: Row(
         children: [
           Text(
-            '$count ${count == 1 ? 'place' : 'places'} nearby',
+            '$count ${count == 1 ? 'place' : 'shops'} nearby',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -346,11 +347,7 @@ class _FoodScreenState extends State<FoodScreen>
             Text(
               'Try switching categories or check back later.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _textMuted,
-                height: 1.5,
-              ),
+              style: TextStyle(fontSize: 14, color: _textMuted, height: 1.5),
             ),
           ],
         ),
@@ -466,8 +463,7 @@ class _CategoryChip extends StatelessWidget {
               duration: const Duration(milliseconds: 280),
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF6B7280),
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 fontSize: 13.5,
                 letterSpacing: 0.2,
               ),

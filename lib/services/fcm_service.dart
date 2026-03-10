@@ -75,7 +75,7 @@ class FcmService {
             ),
           );
         }
-      } else if (type == 'order_cancelled'|| type == 'order_completed') {
+      } else if (type == 'order_cancelled' || type == 'order_completed') {
         // Navigate to the Buyer Orders screen when a cancellation happens
         if (navigatorKey.currentState != null) {
           navigatorKey.currentState!.push(

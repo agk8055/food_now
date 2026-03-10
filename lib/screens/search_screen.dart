@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/custom_loader.dart';
 import '../widgets/shop_card.dart';
 import 'shop_menu_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -14,6 +16,51 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  GeoPoint? _userLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserLocation();
+  }
+
+  Future<void> _fetchUserLocation() async {
+    try {
+      final User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          final location = data['location'] as Map<String, dynamic>?;
+          if (location != null && location['geopoint'] != null) {
+            if (mounted) {
+              setState(() {
+                _userLocation = location['geopoint'] as GeoPoint;
+              });
+            }
+            return;
+          }
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final double? lat = prefs.getDouble('cached_geopoint_lat');
+      final double? lon = prefs.getDouble('cached_geopoint_lon');
+
+      if (lat != null && lon != null) {
+        if (mounted) {
+          setState(() {
+            _userLocation = GeoPoint(lat, lon);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching user location: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -26,8 +73,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.isEmpty) return true;
     final t = text.toLowerCase();
     final q = query.toLowerCase();
-    
-    // Returns true if the word starts with the query 
+
+    // Returns true if the word starts with the query
     // OR if any subsequent word starts with the query (indicated by a space)
     return t.startsWith(q) || t.contains(' $q');
   }
@@ -81,8 +128,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ],
           ),
         ),
-        body: _searchQuery.isEmpty 
-            ? _buildInitialState() 
+        body: _searchQuery.isEmpty
+            ? _buildInitialState()
             : TabBarView(
                 children: [
                   _buildShopSearchResults(),
@@ -141,7 +188,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // Replaced .contains with _matchesSearch
           return _matchesSearch(shopName, queryLower) ||
-                 _matchesSearch(category, queryLower);
+              _matchesSearch(category, queryLower);
         }).toList();
 
         if (results.isEmpty) {
@@ -157,6 +204,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return ShopCard(
               shopId: doc.id,
               data: data,
+              userLocation: _userLocation,
               isCompact: true,
               defaultIcon: Icons.restaurant,
               defaultCategory: "Restaurant",
@@ -190,7 +238,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final results = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final itemName = (data['name'] ?? '').toString();
-          
+
           // Replaced .contains with _matchesSearch
           return _matchesSearch(itemName, queryLower);
         }).toList();
@@ -205,7 +253,7 @@ class _SearchScreenState extends State<SearchScreen> {
           itemBuilder: (context, index) {
             final doc = results[index];
             final data = doc.data() as Map<String, dynamic>;
-            
+
             return _buildFoodItemCard(context, data);
           },
         );
@@ -225,10 +273,8 @@ class _SearchScreenState extends State<SearchScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ShopMenuScreen(
-                shopId: shopId,
-                shopName: shopName,
-              ),
+              builder: (context) =>
+                  ShopMenuScreen(shopId: shopId, shopName: shopName),
             ),
           );
         }

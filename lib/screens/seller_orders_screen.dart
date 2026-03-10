@@ -22,6 +22,19 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
   final Color primaryGreen = const Color(0xFF00bf63);
   final Color backgroundLight = const Color(0xFFF8F9FA);
 
+  Future<void> _handleRefresh() async {
+    if (_user != null) {
+      setState(() {
+        _shopFuture = UserService().getShop(_user.uid);
+      });
+      // Add a small delay for better UX if the fetch is too fast
+      await Future.wait([
+        _shopFuture,
+        Future.delayed(const Duration(milliseconds: 800)),
+      ]);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,9 +88,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                       Text(
                         "Why are you cancelling $buyerName's order?",
                         style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                            height: 1.4),
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Wrap(
@@ -105,7 +119,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                               selectedColor: Colors.redAccent,
                               backgroundColor: Colors.grey[100],
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
@@ -180,8 +196,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                   ),
                 ),
               ),
-              actionsPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              actionsPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -203,10 +221,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                             .collection('orders')
                             .doc(orderId)
                             .update({
-                          'status': 'cancelled',
-                          'cancelReason': reason,
-                          'cancelledAt': FieldValue.serverTimestamp(),
-                        });
+                              'status': 'cancelled',
+                              'cancelReason': reason,
+                              'cancelledAt': FieldValue.serverTimestamp(),
+                            });
 
                         if (context.mounted) {
                           final messenger = ScaffoldMessenger.of(context);
@@ -238,7 +256,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                     backgroundColor: Colors.redAccent,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -290,7 +310,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                   Text(
                     "Enter the 4-digit code from $buyerName's app to complete this order.",
                     style: TextStyle(
-                        color: Colors.grey[600], fontSize: 14, height: 1.4),
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   AnimatedContainer(
@@ -303,7 +326,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                                 color: Colors.redAccent.withOpacity(0.2),
                                 blurRadius: 12,
                                 spreadRadius: 2,
-                              )
+                              ),
                             ]
                           : [],
                     ),
@@ -326,8 +349,12 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                         fillColor: Colors.grey[50],
                         errorText: isError ? "Incorrect OTP." : null,
                         errorStyle: const TextStyle(
-                            color: Colors.redAccent, fontWeight: FontWeight.w600),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 20),
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 20,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -351,8 +378,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                   ),
                 ],
               ),
-              actionsPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              actionsPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -372,9 +401,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                           .collection('orders')
                           .doc(orderId)
                           .update({
-                        'status': 'completed',
-                        'completedAt': FieldValue.serverTimestamp(),
-                      });
+                            'status': 'completed',
+                            'completedAt': FieldValue.serverTimestamp(),
+                          });
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -391,7 +420,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                     backgroundColor: primaryGreen,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -430,8 +461,11 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
   Widget build(BuildContext context) {
     if (_user == null) {
       return const Center(
-          child: Text("Not Authenticated",
-              style: TextStyle(color: Colors.grey, fontSize: 16)));
+        child: Text(
+          "Not Authenticated",
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
     }
 
     return FutureBuilder<DocumentSnapshot?>(
@@ -505,8 +539,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
               builder: (context, orderSnapshot) {
                 if (orderSnapshot.hasError) {
                   return Center(
-                    child: Text('Error: ${orderSnapshot.error}',
-                        style: const TextStyle(color: Colors.redAccent)),
+                    child: Text(
+                      'Error: ${orderSnapshot.error}',
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
                   );
                 }
                 if (orderSnapshot.connectionState == ConnectionState.waiting) {
@@ -516,13 +552,15 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 final docs = orderSnapshot.data?.docs ?? [];
 
                 final pendingOrders = docs.where((doc) {
-                  final status = (doc.data() as Map<String, dynamic>)['status'] ??
+                  final status =
+                      (doc.data() as Map<String, dynamic>)['status'] ??
                       'pending';
                   return status == 'pending';
                 }).toList();
 
                 final completedOrders = docs.where((doc) {
-                  final status = (doc.data() as Map<String, dynamic>)['status'] ??
+                  final status =
+                      (doc.data() as Map<String, dynamic>)['status'] ??
                       'pending';
                   return status == 'completed' || status == 'cancelled';
                 }).toList();
@@ -570,59 +608,70 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     List<QueryDocumentSnapshot> orders, {
     required bool isPendingTab,
   }) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      color: primaryGreen,
+      backgroundColor: Colors.white,
       child: orders.isEmpty
-          ? Center(
+          ? SingleChildScrollView(
               key: const ValueKey('empty_state'),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        )
-                      ],
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isPendingTab
+                            ? Icons.assignment_turned_in_rounded
+                            : Icons.history_rounded,
+                        size: 64,
+                        color: Colors.grey[300],
+                      ),
                     ),
-                    child: Icon(
+                    const SizedBox(height: 24),
+                    Text(
+                      isPendingTab ? "No active orders" : "No past orders",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.grey[800],
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
                       isPendingTab
-                          ? Icons.assignment_turned_in_rounded
-                          : Icons.history_rounded,
-                      size: 64,
-                      color: Colors.grey[300],
+                          ? "New reservations will appear here."
+                          : "Completed and cancelled orders appear here.",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    isPendingTab ? "No active orders" : "No past orders",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.grey[800],
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isPendingTab
-                        ? "New reservations will appear here."
-                        : "Completed and cancelled orders appear here.",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                ],
+                  ],
+                ),
               ),
             )
           : ListView.builder(
               key: const ValueKey('list_state'),
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(
-                  left: 16, right: 16, top: 20, bottom: 100),
+                left: 16,
+                right: 16,
+                top: 20,
+                bottom: 100,
+              ),
               itemCount: orders.length,
               itemBuilder: (context, index) {
                 final orderDoc = orders[index];
@@ -700,7 +749,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              buyerName.isNotEmpty ? buyerName[0].toUpperCase() : 'C',
+                              buyerName.isNotEmpty
+                                  ? buyerName[0].toUpperCase()
+                                  : 'C',
                               style: TextStyle(
                                 color: primaryGreen,
                                 fontWeight: FontWeight.bold,
@@ -751,9 +802,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: statusColor.withOpacity(0.2),
-                      ),
+                      border: Border.all(color: statusColor.withOpacity(0.2)),
                     ),
                     child: Text(
                       statusText,
@@ -830,9 +879,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                 decoration: BoxDecoration(
                   color: primaryGreen.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: primaryGreen.withOpacity(0.2),
-                  ),
+                  border: Border.all(color: primaryGreen.withOpacity(0.2)),
                 ),
                 child: Row(
                   children: [
@@ -871,7 +918,9 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(6),
@@ -911,9 +960,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
-                border: Border(
-                  top: BorderSide(color: Colors.grey[200]!),
-                ),
+                border: Border(top: BorderSide(color: Colors.grey[200]!)),
               ),
               child: Column(
                 children: [
@@ -966,7 +1013,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                               vertical: 12,
                             ),
                           ),
-                          icon: const Icon(Icons.verified_user_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.verified_user_rounded,
+                            size: 18,
+                          ),
                           label: const Text(
                             "VERIFY OTP",
                             style: TextStyle(
@@ -1084,32 +1134,8 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
               return;
             }
 
-            await FirebaseFirestore.instance
-                .collection('orders')
-                .doc(orderId)
-                .update({
-              'status': 'completed',
-              'completedAt': FieldValue.serverTimestamp(),
-            });
-
             if (mounted) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Row(
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: Colors.white),
-                      SizedBox(width: 10),
-                      Text("Order Verified & Completed!",
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  backgroundColor: const Color(0xFF00bf63),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              );
+              _showScannedOrderDetails(context, orderId, data);
             }
           } catch (e) {
             _showError("Error verifying order: $e");
@@ -1122,6 +1148,181 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
     }
   }
 
+  void _showScannedOrderDetails(
+    BuildContext context,
+    String orderId,
+    Map<String, dynamic> data,
+  ) {
+    final String buyerName = data['buyerName'] ?? 'Customer';
+    final double totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final List<dynamic> items = data['items'] ?? [];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Order Details",
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Buyer: $buyerName",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Items:",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                ...items.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "${item['cartQuantity']}x ",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            item['name'],
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Divider(color: Colors.grey[200]),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      "₹$totalAmount",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Color(0xFF00bf63),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.all(16),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                if (mounted) {
+                  setState(() => _isProcessing = false);
+                }
+              },
+              child: Text(
+                "CANCEL",
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('orders')
+                      .doc(orderId)
+                      .update({
+                        'status': 'completed',
+                        'completedAt': FieldValue.serverTimestamp(),
+                      });
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              "Order Verified & Completed!",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF00bf63),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  _showError("Error completing order: $e");
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00bf63),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text(
+                "COMPLETE ORDER",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1131,7 +1332,10 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
         title: const Text(
           "Scan Pickup QR",
           style: TextStyle(
-              fontWeight: FontWeight.w800, color: Colors.white, fontSize: 20),
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            fontSize: 20,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1195,8 +1399,11 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.qr_code_scanner_rounded,
-                          color: Colors.white, size: 20),
+                      Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         "Align QR code within the frame",
@@ -1224,10 +1431,11 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
                     Text(
                       "Verifying Order...",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16),
-                    )
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1325,9 +1533,10 @@ class _CancellationTimerState extends State<CancellationTimer> {
             label: const Text(
               "CANCEL ORDER",
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  letterSpacing: 0.5),
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ),
@@ -1341,8 +1550,11 @@ class _CancellationTimerState extends State<CancellationTimer> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.timer_outlined,
-                  size: 16, color: Colors.redAccent),
+              const Icon(
+                Icons.timer_outlined,
+                size: 16,
+                color: Colors.redAccent,
+              ),
               const SizedBox(width: 6),
               Text(
                 "$minutes:$seconds",

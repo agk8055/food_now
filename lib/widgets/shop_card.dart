@@ -1,11 +1,14 @@
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../screens/shop_menu_screen.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ShopCard extends StatefulWidget {
   final String shopId;
   final Map<String, dynamic> data;
+  final GeoPoint? userLocation;
   final bool isCompact;
   final IconData defaultIcon;
   final String defaultCategory;
@@ -14,6 +17,7 @@ class ShopCard extends StatefulWidget {
     super.key,
     required this.shopId,
     required this.data,
+    this.userLocation,
     this.isCompact = false,
     this.defaultIcon = Icons.restaurant,
     this.defaultCategory = "Restaurant",
@@ -110,6 +114,20 @@ class _ShopCardState extends State<ShopCard>
     final address =
         widget.data['location']?['address'] as String? ??
         'Address not available';
+
+    String distanceLabel = "";
+    if (widget.userLocation != null &&
+        widget.data['location']?['geopoint'] != null) {
+      final shopPoint = widget.data['location']['geopoint'] as GeoPoint;
+      final double distance = Geolocator.distanceBetween(
+        widget.userLocation!.latitude,
+        widget.userLocation!.longitude,
+        shopPoint.latitude,
+        shopPoint.longitude,
+      );
+      // Convert to km and format
+      distanceLabel = "${(distance / 1000).toStringAsFixed(1)} km • ";
+    }
 
     return GestureDetector(
       onTap: isOpen ? () => _navigateToMenu() : null,
@@ -267,7 +285,7 @@ class _ShopCardState extends State<ShopCard>
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                address,
+                                "$distanceLabel$address",
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white70,
@@ -320,28 +338,30 @@ class _ShopCardState extends State<ShopCard>
                             curve: Curves.elasticOut,
                           ),
                         ),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                        child: ClipOval(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.3),
+                                  width: 1,
+                                ),
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            _isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: _isFavorite ? Colors.red : Colors.grey,
-                            size: 22,
-                            semanticLabel: _isFavorite
-                                ? 'Remove from favorites'
-                                : 'Add to favorites',
+                              child: Icon(
+                                _isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: _isFavorite ? Colors.red : Colors.white,
+                                size: 22,
+                                semanticLabel: _isFavorite
+                                    ? 'Remove from favorites'
+                                    : 'Add to favorites',
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -366,6 +386,20 @@ class _ShopCardState extends State<ShopCard>
     final address =
         widget.data['location']?['address'] as String? ??
         'Address not available';
+
+    String distanceLabel = "";
+    if (widget.userLocation != null &&
+        widget.data['location']?['geopoint'] != null) {
+      final shopPoint = widget.data['location']['geopoint'] as GeoPoint;
+      final double distance = Geolocator.distanceBetween(
+        widget.userLocation!.latitude,
+        widget.userLocation!.longitude,
+        shopPoint.latitude,
+        shopPoint.longitude,
+      );
+      // Convert to km and format
+      distanceLabel = "${(distance / 1000).toStringAsFixed(1)} km • ";
+    }
 
     return GestureDetector(
       onTap: isOpen ? () => _navigateToMenu() : null,
@@ -522,7 +556,7 @@ class _ShopCardState extends State<ShopCard>
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                address,
+                                "$distanceLabel$address",
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey,
