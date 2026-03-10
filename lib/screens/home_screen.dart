@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:food_now/services/location_service.dart';
 import 'package:food_now/screens/not_serviceable_screen.dart';
 import 'package:food_now/widgets/custom_loader.dart';
@@ -12,9 +11,9 @@ import 'package:food_now/screens/profile_screen.dart';
 import 'package:food_now/widgets/bottom_navigation_bar.dart';
 import 'package:food_now/screens/food_screen.dart';
 import 'package:food_now/screens/supermart_screen.dart';
-import 'package:food_now/screens/buyer_orders_screen.dart';
 import 'package:food_now/widgets/app_bar.dart';
 import 'package:food_now/widgets/review_bottom_sheet.dart';
+import 'package:food_now/widgets/floating_active_orders.dart'; // <-- Imported the new widget!
 import 'dart:async';
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
@@ -46,15 +45,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isCheckingServiceability = true;
 
   StreamSubscription<QuerySnapshot>? _ordersSubscription;
-  StreamSubscription<QuerySnapshot>? _pendingOrdersSubscription;
-
   final Set<String> _processingOrders = {};
-
-  // State for multiple floating active order cards
-  List<DocumentSnapshot> _pendingOrders = [];
-  final Set<String> _dismissedOrders = {}; // Local state for instant UI updates
-  int _currentOrderPage = 0;
-  final PageController _pageController = PageController(viewportFraction: 0.92);
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -73,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen>
 
     _checkServiceability();
     _listenForCompletedOrders();
-    _listenForPendingOrders();
   }
 
   // ── Business logic ────────────────────────────────────────────────────────
@@ -122,67 +112,9 @@ class _HomeScreenState extends State<HomeScreen>
         });
   }
 
-  void _listenForPendingOrders() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    _pendingOrdersSubscription = FirebaseFirestore.instance
-        .collection('orders')
-        .where('buyerId', isEqualTo: user.uid)
-        .where('status', whereIn: ['pending', 'cancelled'])
-        .snapshots()
-        .listen((snapshot) {
-          final List<DocumentSnapshot> validDocs = [];
-
-          for (var doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            final status = data['status'];
-
-            if (status == 'cancelled') {
-              // 1. Check if the database says it was already dismissed
-              if (data['dismissedByBuyer'] == true) continue;
-
-              // 2. Check local state (just to make UI feel snappy before DB updates)
-              if (_dismissedOrders.contains(doc.id)) continue;
-
-              // 3. Only show recent cancellations (within 24 hours)
-              final createdAt = data['createdAt'] as Timestamp?;
-              if (createdAt != null) {
-                if (DateTime.now().difference(createdAt.toDate()).inHours >
-                    24) {
-                  continue;
-                }
-              }
-            }
-            validDocs.add(doc);
-          }
-
-          validDocs.sort((a, b) {
-            final aTime =
-                (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-            final bTime =
-                (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-            if (aTime == null || bTime == null) return 0;
-            return bTime.compareTo(aTime);
-          });
-
-          if (mounted) {
-            setState(() {
-              _pendingOrders = validDocs;
-              if (_currentOrderPage >= _pendingOrders.length &&
-                  _pendingOrders.isNotEmpty) {
-                _currentOrderPage = _pendingOrders.length - 1;
-              }
-            });
-          }
-        });
-  }
-
   @override
   void dispose() {
     _ordersSubscription?.cancel();
-    _pendingOrdersSubscription?.cancel();
-    _pageController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -277,338 +209,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // ── Navigation Link Logic ───────────────────────────────────────────────
-
-  Future<void> _launchNavigation(Map<String, dynamic> orderData) async {
-    double? lat;
-    double? lng;
-
-    if (orderData.containsKey('shopLocation') &&
-        orderData['shopLocation'] != null) {
-      final GeoPoint point = orderData['shopLocation'];
-      lat = point.latitude;
-      lng = point.longitude;
-    } else if (orderData.containsKey('shopId')) {
-      try {
-        final shopDoc = await FirebaseFirestore.instance
-            .collection('shops')
-            .doc(orderData['shopId'])
-            .get();
-        if (shopDoc.exists) {
-          final shopData = shopDoc.data()!;
-          if (shopData.containsKey('location') &&
-              shopData['location'] != null) {
-            final GeoPoint point = shopData['location']['geopoint'];
-            lat = point.latitude;
-            lng = point.longitude;
-          }
-        }
-      } catch (e) {
-        debugPrint("Error fetching shop location: $e");
-      }
-    }
-
-    String url = '';
-    if (lat != null && lng != null) {
-      url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
-    } else {
-      final shopName = orderData['shopName'] ?? 'Restaurant';
-      final encodedName = Uri.encodeComponent(shopName);
-      url = 'https://www.google.com/maps/search/?api=1&query=$encodedName';
-    }
-
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open maps')));
-      }
-    }
-  }
-
-  // ── Build Active Order Floating Slider ───────────────────────────────────
-
-  Widget _buildActiveOrdersSlider() {
-    if (_pendingOrders.isEmpty) return const SizedBox.shrink();
-
-    if (_pendingOrders.length == 1) {
-      final orderId = _pendingOrders.first.id;
-      final orderData = _pendingOrders.first.data() as Map<String, dynamic>;
-      return _buildSingleOrderCard(orderId, orderData, isSingle: true);
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 105,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() => _currentOrderPage = index);
-            },
-            itemCount: _pendingOrders.length,
-            itemBuilder: (context, index) {
-              final orderId = _pendingOrders[index].id;
-              final orderData =
-                  _pendingOrders[index].data() as Map<String, dynamic>;
-              return _buildSingleOrderCard(orderId, orderData, isSingle: false);
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_pendingOrders.length, (index) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: _currentOrderPage == index ? 16 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentOrderPage == index
-                    ? _AppColors.primary
-                    : Colors.grey[400],
-                borderRadius: BorderRadius.circular(3),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSingleOrderCard(
-    String orderId,
-    Map<String, dynamic> data, {
-    required bool isSingle,
-  }) {
-    final shopName = data['shopName'] ?? 'Your Order';
-    final status = data['status'] ?? 'pending';
-    final isCancelled = status == 'cancelled';
-    final otp = data['otp'] ?? '----';
-    final cancelReason = data['cancelReason'] ?? 'Cancelled by seller';
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BuyerOrdersScreen(),
-              ),
-            );
-          },
-          child: Container(
-            margin: isSingle
-                ? const EdgeInsets.symmetric(horizontal: 16)
-                : const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-              border: Border.all(
-                color: isCancelled
-                    ? Colors.redAccent.withOpacity(0.3)
-                    : _AppColors.border,
-                width: isCancelled ? 1.5 : 1.0,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isCancelled
-                        ? Colors.red.withOpacity(0.1)
-                        : _AppColors.primaryLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isCancelled
-                        ? Icons.cancel_outlined
-                        : Icons.shopping_bag_rounded,
-                    color: isCancelled ? Colors.redAccent : _AppColors.primary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        shopName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          color: _AppColors.textPrimary,
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-
-                      if (isCancelled)
-                        Text(
-                          "Cancelled: $cancelReason",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      else
-                        GestureDetector(
-                          onTap: () => _launchNavigation(data),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _AppColors.primaryLight.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.directions,
-                                  size: 14,
-                                  color: _AppColors.primary,
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  "Get Directions",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (!isCancelled)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          "OTP",
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white70,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          otp,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Database Sync Dismissal Logic ──
-        if (isCancelled)
-          Positioned(
-            top: isSingle ? -4 : -4,
-            right: isSingle ? 6 : -4,
-            child: GestureDetector(
-              onTap: () async {
-                // 1. Immediately hide it from the UI for a snappy feel
-                setState(() {
-                  _dismissedOrders.add(orderId);
-                  _pendingOrders.removeWhere((doc) => doc.id == orderId);
-                  if (_currentOrderPage >= _pendingOrders.length &&
-                      _pendingOrders.isNotEmpty) {
-                    _currentOrderPage = _pendingOrders.length - 1;
-                  }
-                });
-
-                // 2. Update the document in Firestore so it syncs across all devices!
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('orders')
-                      .doc(orderId)
-                      .update({'dismissedByBuyer': true});
-                } catch (e) {
-                  debugPrint("Error updating dismissal status: $e");
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.close_rounded,
-                  size: 16,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   // ── Navigation ──────────────────────────────────────────────────────────
 
   Widget _getScreen(int index) {
@@ -676,33 +276,13 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
             ),
 
-            // Floating Active Order Card Slider
-            if (_pendingOrders.isNotEmpty)
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, animation) {
-                    return SlideTransition(
-                      position:
-                          Tween<Offset>(
-                            begin: const Offset(0, 1),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutBack,
-                            ),
-                          ),
-                      child: child,
-                    );
-                  },
-                  key: ValueKey(_pendingOrders.length),
-                  child: _buildActiveOrdersSlider(),
-                ),
-              ),
+            // Cleaned up UI: The floating widget handles everything itself!
+            const Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: FloatingActiveOrders(),
+            ),
           ],
         ),
         bottomNavigationBar: CustomBottomNavigationBar(
