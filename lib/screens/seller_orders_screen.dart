@@ -242,7 +242,11 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                       FirebaseFirestore.instance
                           .collection('orders')
                           .doc(orderId)
-                          .update({'status': 'completed'});
+                          .update({
+                            'status': 'completed',
+                            'completedAt':
+                                FieldValue.serverTimestamp(), // <-- Added Timestamp
+                          });
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -277,7 +281,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     );
   }
 
-  // --- Show the Global Scanner Screen ---
   void _openGlobalQRScanner(BuildContext context, String shopId) {
     Navigator.push(
       context,
@@ -366,7 +369,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
                     _buildOrderList(completedOrders, isPendingTab: false),
                   ],
                 ),
-                // --- Global Scanner FAB ---
                 floatingActionButton: FloatingActionButton.extended(
                   onPressed: () => _openGlobalQRScanner(context, shopId),
                   backgroundColor: const Color(0xFF00bf63),
@@ -432,12 +434,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: 80,
-      ), // Padding for FAB
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final orderDoc = orders[index];
@@ -682,7 +679,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
             ),
           ),
 
-          // Action Footer
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
@@ -765,7 +761,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
   }
 }
 
-// --- The NEW Global Camera Scanner Screen ---
 class _GlobalQRScannerScreen extends StatefulWidget {
   final String shopId;
 
@@ -789,7 +784,6 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
         duration: const Duration(seconds: 3),
       ),
     );
-    // Allow scanning again after a brief pause
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _isProcessing = false);
     });
@@ -842,14 +836,17 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
               return;
             }
 
-            // All checks passed! Mark as completed.
             await FirebaseFirestore.instance
                 .collection('orders')
                 .doc(orderId)
-                .update({'status': 'completed'});
+                .update({
+                  'status': 'completed',
+                  'completedAt':
+                      FieldValue.serverTimestamp(), // <-- Added Timestamp
+                });
 
             if (mounted) {
-              Navigator.pop(context); // Close scanner
+              Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text("✅ Order Verified & Completed!"),
@@ -864,7 +861,7 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
         } else {
           _showError("Invalid QR Code Format.");
         }
-        break; // Stop loop after processing the first matching QR
+        break;
       }
     }
   }
@@ -883,7 +880,6 @@ class _GlobalQRScannerScreenState extends State<_GlobalQRScannerScreen> {
       body: Stack(
         children: [
           MobileScanner(controller: controller, onDetect: _handleBarcode),
-          // Simple scanning overlay
           Center(
             child: Container(
               width: 260,
