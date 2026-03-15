@@ -20,6 +20,8 @@ class _AppColors {
   static const Color borderAccent = Color(0xFF00BF6340);
   static const Color cancelRed = Color(0xFFFF4D4D);
   static const Color cancelRedDim = Color(0xFFFF4D4D1A);
+  static const Color expiredGrey = Color(0xFF8A8A8A);
+  static const Color expiredGreyDim = Color(0xFF8A8A8A26);
 }
 
 // ─── Glassmorphic Card Painter ────────────────────────────────────────────────
@@ -101,13 +103,14 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _entrySlide = Tween<Offset>(
-      begin: const Offset(0, 1.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutExpo));
-    _entryFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entryController, curve: Curves.easeOut),
-    );
+    _entrySlide = Tween<Offset>(begin: const Offset(0, 1.0), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutExpo),
+        );
+    _entryFade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOut));
 
     _listenForPendingOrders();
   }
@@ -128,22 +131,24 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
     _subscription = FirebaseFirestore.instance
         .collection('orders')
         .where('buyerId', isEqualTo: user.uid)
-        .where('status', whereIn: ['pending', 'cancelled'])
+        // Added 'expired' so they stay in the widget until dismissed
+        .where('status', whereIn: ['pending', 'cancelled', 'expired'])
         .snapshots()
         .listen((snapshot) {
           final List<DocumentSnapshot> validDocs = [];
 
           for (var doc in snapshot.docs) {
-            final data = doc.data();
+            final data = doc.data() as Map<String, dynamic>;
             final status = data['status'];
 
-            if (status == 'cancelled') {
+            if (status == 'cancelled' || status == 'expired') {
               if (data['dismissedByBuyer'] == true) continue;
               if (_dismissedOrders.contains(doc.id)) continue;
 
               final createdAt = data['createdAt'] as Timestamp?;
               if (createdAt != null) {
-                if (DateTime.now().difference(createdAt.toDate()).inHours > 24) {
+                if (DateTime.now().difference(createdAt.toDate()).inHours >
+                    24) {
                   continue;
                 }
               }
@@ -193,7 +198,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
             .get();
         if (shopDoc.exists) {
           final shopData = shopDoc.data()!;
-          if (shopData.containsKey('location') && shopData['location'] != null) {
+          if (shopData.containsKey('location') &&
+              shopData['location'] != null) {
             final GeoPoint point = shopData['location']['geopoint'];
             lat = point.latitude;
             lng = point.longitude;
@@ -223,7 +229,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
             content: const Text('Could not open maps'),
             backgroundColor: _AppColors.surfaceElevated,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -440,10 +448,32 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
     required bool isSingle,
   }) {
     final shopName = data['shopName'] ?? 'Your Order';
-    final status = data['status'] ?? 'pending';
-    final isCancelled = status == 'cancelled';
+    String status = data['status'] ?? 'pending';
     final otp = data['otp'] ?? '----';
     final cancelReason = data['cancelReason'] ?? 'Cancelled by seller';
+
+    DateTime? expiryTime;
+    if (data['expiryTime'] != null) {
+      expiryTime = (data['expiryTime'] as Timestamp).toDate();
+    }
+
+    // Dynamic Expiration Check
+    if (status == 'pending' &&
+        expiryTime != null &&
+        DateTime.now().isAfter(expiryTime)) {
+      status = 'expired';
+      // Automatically update the document in firestore since it has expired
+      Future.microtask(() {
+        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+          'status': 'expired',
+          'cancelReason': 'Order was not picked up before the expiry time.',
+        });
+      });
+    }
+
+    final isCancelled = status == 'cancelled';
+    final isExpired = status == 'expired';
+    final isInactive = isCancelled || isExpired;
 
     return GestureDetector(
       onTap: () {
@@ -473,6 +503,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                 border: Border.all(
                   color: isCancelled
                       ? _AppColors.cancelRed.withOpacity(0.25)
+                      : isExpired
+                      ? _AppColors.expiredGrey.withOpacity(0.25)
                       : _AppColors.borderAccent,
                   width: 1.0,
                 ),
@@ -480,6 +512,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                   BoxShadow(
                     color: isCancelled
                         ? _AppColors.cancelRed.withOpacity(0.08)
+                        : isExpired
+                        ? _AppColors.expiredGrey.withOpacity(0.08)
                         : _AppColors.primary.withOpacity(0.08),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
@@ -496,6 +530,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                   // ─── Animated Icon ───
                   _AnimatedIconBadge(
                     isCancelled: isCancelled,
+                    isExpired: isExpired,
                     pulseAnimation: _pulseAnimation,
                   ),
                   const SizedBox(width: 13),
@@ -516,6 +551,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                                   fontSize: 14,
                                   color: isCancelled
                                       ? _AppColors.cancelRed.withOpacity(0.9)
+                                      : isExpired
+                                      ? _AppColors.expiredGrey.withOpacity(0.9)
                                       : _AppColors.textPrimary,
                                   letterSpacing: -0.3,
                                 ),
@@ -525,68 +562,110 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                             ),
                             if (isCancelled) ...[
                               const SizedBox(width: 6),
-                              _StatusBadge(label: "CANCELLED", isCancel: true),
+                              const _StatusBadge(
+                                label: "CANCELLED",
+                                color: _AppColors.cancelRed,
+                                bgColor: _AppColors.cancelRedDim,
+                              ),
+                            ] else if (isExpired) ...[
+                              const SizedBox(width: 6),
+                              const _StatusBadge(
+                                label: "EXPIRED",
+                                color: _AppColors.expiredGrey,
+                                bgColor: _AppColors.expiredGreyDim,
+                              ),
                             ] else ...[
                               const SizedBox(width: 6),
-                              _StatusBadge(label: "ACTIVE", isCancel: false),
+                              const _StatusBadge(
+                                label: "ACTIVE",
+                                color: _AppColors.primary,
+                                bgColor: _AppColors.primaryDim,
+                              ),
                             ],
                           ],
                         ),
                         const SizedBox(height: 5),
 
-                        if (isCancelled)
+                        if (isInactive)
                           Text(
                             cancelReason,
                             style: TextStyle(
                               fontSize: 12,
-                              color: _AppColors.cancelRed.withOpacity(0.7),
+                              color: isExpired
+                                  ? _AppColors.expiredGrey.withOpacity(0.7)
+                                  : _AppColors.cancelRed.withOpacity(0.7),
                               fontWeight: FontWeight.w500,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           )
                         else
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _launchNavigation(data),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.near_me_rounded,
-                                  size: 12,
-                                  color: _AppColors.primary,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (expiryTime != null) ...[
+                                _CompactExpirationTimer(
+                                  expiryTime: expiryTime,
+                                  onExpired: () {
+                                    FirebaseFirestore.instance
+                                        .collection('orders')
+                                        .doc(orderId)
+                                        .update({
+                                          'status': 'expired',
+                                          'cancelReason':
+                                              'Order was not picked up before the expiry time.',
+                                        });
+                                  },
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Get Directions",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.1,
-                                  ),
-                                ),
-                                const SizedBox(width: 3),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 9,
-                                  color: _AppColors.primary.withOpacity(0.6),
-                                ),
+                                const SizedBox(height: 4),
                               ],
-                            ),
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => _launchNavigation(data),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.near_me_rounded,
+                                      size: 12,
+                                      color: _AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      "Get Directions",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 9,
+                                      color: _AppColors.primary.withOpacity(
+                                        0.6,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                       ],
                     ),
                   ),
 
                   // ─── Right Action ───
-                  if (isCancelled)
+                  if (isInactive)
                     _DismissButton(
                       onTap: () async {
                         setState(() {
                           _dismissedOrders.add(orderId);
-                          _pendingOrders.removeWhere((doc) => doc.id == orderId);
+                          _pendingOrders.removeWhere(
+                            (doc) => doc.id == orderId,
+                          );
                           if (_currentOrderPage >= _pendingOrders.length &&
                               _pendingOrders.isNotEmpty) {
                             _currentOrderPage = _pendingOrders.length - 1;
@@ -603,9 +682,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                       },
                     )
                   else
-                    _QRButton(
-                      onTap: () => _showQRCode(context, orderId, otp),
-                    ),
+                    _QRButton(onTap: () => _showQRCode(context, orderId, otp)),
                 ],
               ),
             ),
@@ -623,6 +700,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                       Colors.transparent,
                       isCancelled
                           ? _AppColors.cancelRed.withOpacity(0.3)
+                          : isExpired
+                          ? _AppColors.expiredGrey.withOpacity(0.3)
                           : _AppColors.primary.withOpacity(0.4),
                       Colors.transparent,
                     ],
@@ -648,12 +727,16 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
           duration: const Duration(milliseconds: 350),
           transitionBuilder: (child, animation) {
             return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.3),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.3),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: FadeTransition(opacity: animation, child: child),
             );
           },
@@ -668,7 +751,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      height: 86,
+                      height: 98, // Slightly taller to fit the timer row
                       child: PageView.builder(
                         controller: _pageController,
                         onPageChanged: (index) {
@@ -677,8 +760,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                         itemCount: _pendingOrders.length,
                         itemBuilder: (context, index) {
                           final orderId = _pendingOrders[index].id;
-                          final orderData = _pendingOrders[index].data()
-                              as Map<String, dynamic>;
+                          final orderData =
+                              _pendingOrders[index].data()
+                                  as Map<String, dynamic>;
                           return _buildSingleOrderCard(
                             orderId,
                             orderData,
@@ -708,7 +792,9 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                             boxShadow: isActive
                                 ? [
                                     BoxShadow(
-                                      color: _AppColors.primary.withOpacity(0.5),
+                                      color: _AppColors.primary.withOpacity(
+                                        0.5,
+                                      ),
                                       blurRadius: 8,
                                       spreadRadius: 0,
                                     ),
@@ -730,20 +816,36 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
 
 class _AnimatedIconBadge extends StatelessWidget {
   final bool isCancelled;
+  final bool isExpired;
   final Animation<double> pulseAnimation;
 
   const _AnimatedIconBadge({
     required this.isCancelled,
+    required this.isExpired,
     required this.pulseAnimation,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isInactive = isCancelled || isExpired;
+
+    final mainColor = isCancelled
+        ? _AppColors.cancelRed
+        : isExpired
+        ? _AppColors.expiredGrey
+        : _AppColors.primary;
+
+    final dimColor = isCancelled
+        ? _AppColors.cancelRedDim
+        : isExpired
+        ? _AppColors.expiredGreyDim
+        : _AppColors.primaryDim;
+
     return Stack(
       alignment: Alignment.center,
       children: [
         // Outer pulse ring (only for active orders)
-        if (!isCancelled)
+        if (!isInactive)
           AnimatedBuilder(
             animation: pulseAnimation,
             builder: (_, __) => Container(
@@ -761,23 +863,18 @@ class _AnimatedIconBadge extends StatelessWidget {
           height: 40,
           width: 40,
           decoration: BoxDecoration(
-            color: isCancelled
-                ? _AppColors.cancelRedDim
-                : _AppColors.primaryDim,
+            color: dimColor,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: isCancelled
-                  ? _AppColors.cancelRed.withOpacity(0.3)
-                  : _AppColors.primary.withOpacity(0.3),
-              width: 1,
-            ),
+            border: Border.all(color: mainColor.withOpacity(0.3), width: 1),
           ),
           child: Center(
             child: Icon(
               isCancelled
                   ? Icons.info_outline_rounded
+                  : isExpired
+                  ? Icons.timer_off_rounded
                   : Icons.storefront_rounded,
-              color: isCancelled ? _AppColors.cancelRed : _AppColors.primary,
+              color: mainColor,
               size: 18,
             ),
           ),
@@ -789,32 +886,30 @@ class _AnimatedIconBadge extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final String label;
-  final bool isCancel;
+  final Color color;
+  final Color bgColor;
 
-  const _StatusBadge({required this.label, required this.isCancel});
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+    required this.bgColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: isCancel
-            ? _AppColors.cancelRed.withOpacity(0.12)
-            : _AppColors.primaryDim,
+        color: bgColor,
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(
-          color: isCancel
-              ? _AppColors.cancelRed.withOpacity(0.25)
-              : _AppColors.primary.withOpacity(0.2),
-          width: 0.8,
-        ),
+        border: Border.all(color: color.withOpacity(0.25), width: 0.8),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 8,
           fontWeight: FontWeight.w800,
-          color: isCancel ? _AppColors.cancelRed : _AppColors.primary,
+          color: color,
           letterSpacing: 0.8,
         ),
       ),
@@ -836,17 +931,14 @@ class _DismissButton extends StatelessWidget {
         margin: const EdgeInsets.only(left: 10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: _AppColors.cancelRedDim,
+          color: _AppColors.surfaceHighlight,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: _AppColors.cancelRed.withOpacity(0.3),
-            width: 1,
-          ),
+          border: Border.all(color: _AppColors.border, width: 1),
         ),
         child: const Icon(
           Icons.close_rounded,
           size: 15,
-          color: _AppColors.cancelRed,
+          color: _AppColors.textSecondary,
         ),
       ),
     );
@@ -874,9 +966,10 @@ class _QRButtonState extends State<_QRButton>
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(parent: _tapController, curve: Curves.easeInOut),
-    );
+    _scaleAnim = Tween<double>(
+      begin: 1.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(parent: _tapController, curve: Curves.easeInOut));
   }
 
   @override
@@ -901,13 +994,10 @@ class _QRButtonState extends State<_QRButton>
           margin: const EdgeInsets.only(left: 10),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                _AppColors.primary,
-                Color(0xFF009A4F),
-              ],
+              colors: [_AppColors.primary, Color(0xFF009A4F)],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
@@ -936,6 +1026,102 @@ class _QRButtonState extends State<_QRButton>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Compact Expiration Timer ────────────────────────────────────────────────
+class _CompactExpirationTimer extends StatefulWidget {
+  final DateTime expiryTime;
+  final VoidCallback onExpired;
+
+  const _CompactExpirationTimer({
+    required this.expiryTime,
+    required this.onExpired,
+  });
+
+  @override
+  State<_CompactExpirationTimer> createState() =>
+      _CompactExpirationTimerState();
+}
+
+class _CompactExpirationTimerState extends State<_CompactExpirationTimer> {
+  Timer? _timer;
+  late Duration _remainingTime;
+  bool _isExpired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateRemainingTime();
+    if (!_isExpired) _startTimer();
+  }
+
+  void _calculateRemainingTime() {
+    _remainingTime = widget.expiryTime.difference(DateTime.now());
+    if (_remainingTime.isNegative) {
+      _remainingTime = Duration.zero;
+      _isExpired = true;
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _calculateRemainingTime();
+          if (_isExpired) {
+            timer.cancel();
+            widget.onExpired();
+          }
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isExpired) return const SizedBox.shrink();
+
+    final hours = _remainingTime.inHours.toString().padLeft(2, '0');
+    final minutes = (_remainingTime.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_remainingTime.inSeconds % 60).toString().padLeft(2, '0');
+
+    final timeString = _remainingTime.inHours > 0
+        ? "$hours:$minutes:$seconds"
+        : "$minutes:$seconds";
+
+    // Change to red if 15 minutes or less
+    final isUrgent = _remainingTime.inMinutes <= 15;
+    final color = isUrgent ? _AppColors.cancelRed : _AppColors.primary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isUrgent ? Icons.timer_off_rounded : Icons.timer_outlined,
+          size: 11,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          "Expires in $timeString",
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
     );
   }
 }

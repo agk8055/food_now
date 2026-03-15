@@ -21,6 +21,8 @@ class _C {
   static const Color cancelRedLight = Color(0xFFFEF2F2);
   static const Color pendingAmber = Color(0xFFF59E0B);
   static const Color pendingAmberLight = Color(0xFFFFFBEB);
+  static const Color expiredGrey = Color(0xFF6B7280);
+  static const Color expiredGreyLight = Color(0xFFF3F4F6);
 }
 
 class BuyerOrdersScreen extends StatelessWidget {
@@ -46,7 +48,11 @@ class BuyerOrdersScreen extends StatelessWidget {
             shadowColor: Colors.black.withOpacity(0.06),
             iconTheme: const IconThemeData(color: _C.textPrimary),
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 22, bottom: 18, right: 22),
+              titlePadding: const EdgeInsets.only(
+                left: 22,
+                bottom: 18,
+                right: 22,
+              ),
               title: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -153,7 +159,11 @@ class BuyerOrdersScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: _C.primaryMid, width: 2),
               ),
-              child: const Icon(Icons.lock_outline_rounded, size: 36, color: _C.primary),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                size: 36,
+                color: _C.primary,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -168,7 +178,11 @@ class BuyerOrdersScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               "Please log in to view your orders.",
-              style: TextStyle(color: _C.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: _C.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -191,7 +205,11 @@ class BuyerOrdersScreen extends StatelessWidget {
                 color: _C.cancelRedLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline_rounded, size: 38, color: _C.cancelRed),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 38,
+                color: _C.cancelRed,
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -206,7 +224,11 @@ class BuyerOrdersScreen extends StatelessWidget {
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(color: _C.textSecondary, fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: _C.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -387,7 +409,9 @@ class _OrderCard extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                     decoration: BoxDecoration(
                       color: _C.primaryLight,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -397,7 +421,11 @@ class _OrderCard extends StatelessWidget {
                             color: _C.primary.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(11),
                           ),
-                          child: const Icon(Icons.qr_code_2_rounded, color: _C.primary, size: 20),
+                          child: const Icon(
+                            Icons.qr_code_2_rounded,
+                            color: _C.primary,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Column(
@@ -430,7 +458,7 @@ class _OrderCard extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                     child: Column(
                       children: [
-                        // QR Code — transparent bg, green, rounded
+                        // QR Code
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
@@ -472,7 +500,10 @@ class _OrderCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: _C.primaryLight,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _C.primaryMid, width: 1.5),
+                            border: Border.all(
+                              color: _C.primaryMid,
+                              width: 1.5,
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -550,21 +581,47 @@ class _OrderCard extends StatelessWidget {
       formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(date);
     }
 
+    DateTime? expiryTime;
+    if (data['expiryTime'] != null) {
+      expiryTime = (data['expiryTime'] as Timestamp).toDate();
+    }
+
+    // Dynamic Expiration Check
+    String displayStatus = status;
+    if (status == 'pending' &&
+        expiryTime != null &&
+        DateTime.now().isAfter(expiryTime)) {
+      displayStatus = 'expired';
+      // Automatically update the document in firestore since it has expired
+      Future.microtask(() {
+        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+          'status': 'expired',
+          'cancelReason': 'Order was not picked up before the expiry time.',
+        });
+      });
+    }
+
     // Status config
     Color statusColor;
     Color statusBg;
     String statusText;
     IconData statusIcon;
-    if (status == 'completed') {
+
+    if (displayStatus == 'completed') {
       statusColor = _C.primary;
       statusBg = _C.primaryLight;
       statusText = "COMPLETED";
       statusIcon = Icons.check_circle_rounded;
-    } else if (status == 'cancelled') {
+    } else if (displayStatus == 'cancelled') {
       statusColor = _C.cancelRed;
       statusBg = _C.cancelRedLight;
       statusText = "CANCELLED";
       statusIcon = Icons.cancel_rounded;
+    } else if (displayStatus == 'expired') {
+      statusColor = _C.expiredGrey;
+      statusBg = _C.expiredGreyLight;
+      statusText = "EXPIRED";
+      statusIcon = Icons.timer_off_rounded;
     } else {
       statusColor = _C.pendingAmber;
       statusBg = _C.pendingAmberLight;
@@ -647,7 +704,11 @@ class _OrderCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.schedule_rounded, size: 11, color: _C.textTertiary),
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 11,
+                              color: _C.textTertiary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               formattedDate,
@@ -664,7 +725,10 @@ class _OrderCard extends StatelessWidget {
                   ),
                   // Status pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: statusBg,
                       borderRadius: BorderRadius.circular(20),
@@ -694,34 +758,62 @@ class _OrderCard extends StatelessWidget {
               ),
             ),
 
-            Divider(height: 1, color: _C.border, thickness: 1, indent: 18, endIndent: 18),
+            Divider(
+              height: 1,
+              color: _C.border,
+              thickness: 1,
+              indent: 18,
+              endIndent: 18,
+            ),
 
-            // ── Cancellation Reason ──
-            if (status == 'cancelled' && data['cancelReason'] != null)
+            // ── Cancellation / Expiry Reason ──
+            if ((displayStatus == 'cancelled' || displayStatus == 'expired') &&
+                data['cancelReason'] != null)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: _C.cancelRedLight,
+                  color: displayStatus == 'expired'
+                      ? _C.expiredGreyLight
+                      : _C.cancelRedLight,
                   borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: _C.cancelRed.withOpacity(0.15)),
+                  border: Border.all(
+                    color: displayStatus == 'expired'
+                        ? _C.expiredGrey.withOpacity(0.2)
+                        : _C.cancelRed.withOpacity(0.15),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline_rounded, color: _C.cancelRed, size: 16),
+                    Icon(
+                      displayStatus == 'expired'
+                          ? Icons.timer_off_rounded
+                          : Icons.error_outline_rounded,
+                      color: displayStatus == 'expired'
+                          ? _C.expiredGrey
+                          : _C.cancelRed,
+                      size: 16,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "REASON FOR CANCELLATION",
+                            displayStatus == 'expired'
+                                ? "EXPIRATION NOTICE"
+                                : "REASON FOR CANCELLATION",
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: _C.cancelRed.withOpacity(0.7),
+                              color: displayStatus == 'expired'
+                                  ? _C.expiredGrey
+                                  : _C.cancelRed.withOpacity(0.7),
                               letterSpacing: 0.8,
                             ),
                           ),
@@ -730,7 +822,9 @@ class _OrderCard extends StatelessWidget {
                             data['cancelReason'],
                             style: TextStyle(
                               fontSize: 13,
-                              color: _C.cancelRed.withOpacity(0.85),
+                              color: displayStatus == 'expired'
+                                  ? Colors.black87
+                                  : _C.cancelRed.withOpacity(0.85),
                               height: 1.4,
                               fontWeight: FontWeight.w600,
                             ),
@@ -743,11 +837,14 @@ class _OrderCard extends StatelessWidget {
               ),
 
             // ── Refund Notice ──
-            if (status == 'cancelled')
+            if (displayStatus == 'cancelled' || displayStatus == 'expired')
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: _C.primaryLight,
                   borderRadius: BorderRadius.circular(13),
@@ -755,7 +852,11 @@ class _OrderCard extends StatelessWidget {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.currency_rupee_rounded, color: _C.primary, size: 15),
+                    Icon(
+                      Icons.currency_rupee_rounded,
+                      color: _C.primary,
+                      size: 15,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       "REFUND INITIATED",
@@ -767,7 +868,11 @@ class _OrderCard extends StatelessWidget {
                       ),
                     ),
                     Spacer(),
-                    Icon(Icons.check_circle_rounded, color: _C.primary, size: 14),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: _C.primary,
+                      size: 14,
+                    ),
                   ],
                 ),
               ),
@@ -816,7 +921,10 @@ class _OrderCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: _C.primaryLight,
                               borderRadius: BorderRadius.circular(9),
-                              border: Border.all(color: _C.primaryMid, width: 1),
+                              border: Border.all(
+                                color: _C.primaryMid,
+                                width: 1,
+                              ),
                             ),
                             child: Center(
                               child: Text(
@@ -893,8 +1001,8 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const Spacer(),
 
-                  // QR action for pending
-                  if (status == 'pending')
+                  // QR action for pending ONLY
+                  if (displayStatus == 'pending')
                     Row(
                       children: [
                         // OTP mini display
@@ -925,7 +1033,9 @@ class _OrderCard extends StatelessWidget {
                         const SizedBox(width: 14),
 
                         // QR Button
-                        _QRButton(onTap: () => _showQRCode(context, orderId, otp)),
+                        _QRButton(
+                          onTap: () => _showQRCode(context, orderId, otp),
+                        ),
                       ],
                     ),
                 ],
@@ -933,7 +1043,7 @@ class _OrderCard extends StatelessWidget {
             ),
 
             // ── Review Section ──
-            if (status == 'completed')
+            if (displayStatus == 'completed')
               FutureBuilder<QuerySnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('reviews')
@@ -961,7 +1071,8 @@ class _OrderCard extends StatelessWidget {
                     return const SizedBox();
                   }
 
-                  final reviewData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  final reviewData =
+                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
                   final int rating = reviewData['rating'] ?? 0;
                   final String comment = reviewData['comment'] ?? '';
 
@@ -971,7 +1082,9 @@ class _OrderCard extends StatelessWidget {
                       key: ValueKey(orderId),
                       decoration: BoxDecoration(
                         color: _C.surface,
-                        border: Border(top: BorderSide(color: _C.border, width: 1)),
+                        border: Border(
+                          top: BorderSide(color: _C.border, width: 1),
+                        ),
                       ),
                       padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
                       child: Column(
@@ -1003,7 +1116,9 @@ class _OrderCard extends StatelessWidget {
                                   return Padding(
                                     padding: const EdgeInsets.only(left: 2),
                                     child: AnimatedSwitcher(
-                                      duration: const Duration(milliseconds: 200),
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
                                       child: Icon(
                                         index < rating
                                             ? Icons.star_rounded
@@ -1076,17 +1191,22 @@ class _QRButton extends StatefulWidget {
   State<_QRButton> createState() => _QRButtonState();
 }
 
-class _QRButtonState extends State<_QRButton> with SingleTickerProviderStateMixin {
+class _QRButtonState extends State<_QRButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
-    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 110),
     );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.92,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -1099,7 +1219,10 @@ class _QRButtonState extends State<_QRButton> with SingleTickerProviderStateMixi
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,

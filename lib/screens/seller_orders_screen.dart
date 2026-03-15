@@ -194,19 +194,34 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                 }
 
                 final docs = orderSnapshot.data?.docs ?? [];
+                final now = DateTime.now();
 
+                // Sort properly into tabs keeping the real-time expiry checks in mind
                 final pendingOrders = docs.where((doc) {
-                  final status =
-                      (doc.data() as Map<String, dynamic>)['status'] ??
-                      'pending';
-                  return status == 'pending';
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data['status'] ?? 'pending';
+                  final expiryTimestamp = data['expiryTime'] as Timestamp?;
+                  final isExpired =
+                      status == 'pending' &&
+                      expiryTimestamp != null &&
+                      now.isAfter(expiryTimestamp.toDate());
+
+                  return status == 'pending' && !isExpired;
                 }).toList();
 
                 final completedOrders = docs.where((doc) {
-                  final status =
-                      (doc.data() as Map<String, dynamic>)['status'] ??
-                      'pending';
-                  return status == 'completed' || status == 'cancelled';
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data['status'] ?? 'pending';
+                  final expiryTimestamp = data['expiryTime'] as Timestamp?;
+                  final isExpired =
+                      status == 'pending' &&
+                      expiryTimestamp != null &&
+                      now.isAfter(expiryTimestamp.toDate());
+
+                  return status == 'completed' ||
+                      status == 'cancelled' ||
+                      status == 'expired' ||
+                      isExpired;
                 }).toList();
 
                 return TabBarView(
@@ -420,7 +435,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
               child: Text(
                 isPendingTab
                     ? "New reservations will appear here."
-                    : "Completed and cancelled orders appear here.",
+                    : "Completed and expired orders appear here.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey[500],
@@ -439,12 +454,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     return ListView.builder(
       key: const ValueKey('list_state'),
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 20,
-        bottom: 110,
-      ),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 110),
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final orderDoc = orders[index];
@@ -475,18 +485,42 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
       formattedDate = DateFormat('MMM dd • hh:mm a').format(date);
     }
 
+    DateTime? expiryTime;
+    if (data['expiryTime'] != null) {
+      expiryTime = (data['expiryTime'] as Timestamp).toDate();
+    }
+
+    // Dynamic Expiration Check
+    String displayStatus = status;
+    if (status == 'pending' &&
+        expiryTime != null &&
+        DateTime.now().isAfter(expiryTime)) {
+      displayStatus = 'expired';
+      // Automatically update the document in firestore since it has expired
+      Future.microtask(() {
+        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+          'status': 'expired',
+          'cancelReason': 'Order was not picked up before the expiry time.',
+        });
+      });
+    }
+
     Color statusColor;
     String statusText;
     IconData statusIcon;
 
-    if (status == 'completed') {
+    if (displayStatus == 'completed') {
       statusColor = primaryGreen;
       statusText = "COMPLETED";
       statusIcon = Icons.check_circle_rounded;
-    } else if (status == 'cancelled') {
+    } else if (displayStatus == 'cancelled') {
       statusColor = Colors.redAccent;
       statusText = "CANCELLED";
       statusIcon = Icons.cancel_rounded;
+    } else if (displayStatus == 'expired') {
+      statusColor = Colors.grey.shade600;
+      statusText = "EXPIRED";
+      statusIcon = Icons.timer_off_rounded;
     } else {
       statusColor = const Color(0xFFFF9500);
       statusText = "PENDING";
@@ -494,7 +528,13 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     }
 
     final String initials = buyerName.isNotEmpty
-        ? buyerName.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
+        ? buyerName
+              .trim()
+              .split(' ')
+              .map((w) => w[0])
+              .take(2)
+              .join()
+              .toUpperCase()
         : 'C';
 
     return Container(
@@ -531,10 +571,15 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             ),
 
             // ── STATUS ALERTS ────────────────────────────────────────
-            if (status == 'cancelled' && data['cancelReason'] != null)
-              _buildCancelReasonBanner(data['cancelReason']),
+            if ((displayStatus == 'cancelled' || displayStatus == 'expired') &&
+                data['cancelReason'] != null)
+              _buildCancelReasonBanner(
+                data['cancelReason'],
+                isExpired: displayStatus == 'expired',
+              ),
 
-            if (status == 'cancelled') _buildRefundBanner(),
+            if (displayStatus == 'cancelled' || displayStatus == 'expired')
+              _buildRefundBanner(),
 
             // ── ITEMS ────────────────────────────────────────────────
             _buildItemsList(items),
@@ -544,7 +589,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
               context: context,
               orderId: orderId,
               data: data,
-              status: status,
+              displayStatus: displayStatus,
+              expiryTime: expiryTime,
               otp: otp,
               buyerName: buyerName,
               totalAmount: totalAmount,
@@ -645,7 +691,10 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: statusColor.withOpacity(0.25), width: 1),
+              border: Border.all(
+                color: statusColor.withOpacity(0.25),
+                width: 1,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -669,15 +718,18 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     );
   }
 
-  Widget _buildCancelReasonBanner(String reason) {
+  Widget _buildCancelReasonBanner(String reason, {required bool isExpired}) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: isExpired ? Colors.grey.shade100 : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.shade200, width: 1),
+        border: Border.all(
+          color: isExpired ? Colors.grey.shade300 : Colors.orange.shade200,
+          width: 1,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,12 +737,12 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.orange.shade100,
+              color: isExpired ? Colors.grey.shade300 : Colors.orange.shade100,
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.info_rounded,
-              color: Colors.orange.shade700,
+              isExpired ? Icons.timer_off_rounded : Icons.info_rounded,
+              color: isExpired ? Colors.grey.shade700 : Colors.orange.shade700,
               size: 14,
             ),
           ),
@@ -700,11 +752,13 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "CANCELLATION REASON",
+                  isExpired ? "EXPIRATION NOTICE" : "CANCELLATION REASON",
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w900,
-                    color: Colors.orange.shade700,
+                    color: isExpired
+                        ? Colors.grey.shade700
+                        : Colors.orange.shade700,
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -713,7 +767,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                   reason,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.orange.shade900,
+                    color: isExpired ? Colors.black87 : Colors.orange.shade900,
                     height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
@@ -839,7 +893,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     required BuildContext context,
     required String orderId,
     required Map<String, dynamic> data,
-    required String status,
+    required String displayStatus,
+    required DateTime? expiryTime,
     required String otp,
     required String buyerName,
     required double totalAmount,
@@ -879,25 +934,30 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                   ],
                 ),
               ),
-              // Verify OTP button
-              if (status == 'pending')
+              // Verify OTP button (Only if not expired or completed)
+              if (displayStatus == 'pending')
                 _VerifyOTPButton(
                   primaryGreen: primaryGreen,
-                  onTap: () => _showVerifyOTPDialog(
-                    context,
-                    orderId,
-                    otp,
-                    buyerName,
-                  ),
+                  onTap: () =>
+                      _showVerifyOTPDialog(context, orderId, otp, buyerName),
                 ),
             ],
           ),
-          // Cancellation timer
-          if (status == 'pending' && data['createdAt'] != null) ...[
+          // Expiration Timer
+          if (displayStatus == 'pending' && expiryTime != null) ...[
             const SizedBox(height: 14),
-            CancellationTimer(
-              createdAt: (data['createdAt'] as Timestamp).toDate(),
-              onExpired: () {},
+            ExpirationTimer(
+              expiryTime: expiryTime,
+              onExpired: () {
+                FirebaseFirestore.instance
+                    .collection('orders')
+                    .doc(orderId)
+                    .update({
+                      'status': 'expired',
+                      'cancelReason':
+                          'Order was not picked up before the expiry time.',
+                    });
+              },
               onCancel: () => _showCancelOrderDialog(
                 context,
                 orderId,
@@ -1012,7 +1072,11 @@ class _AnimatedOrderCard extends StatefulWidget {
   final Widget child;
   final int index;
 
-  const _AnimatedOrderCard({super.key, required this.child, required this.index});
+  const _AnimatedOrderCard({
+    super.key,
+    required this.child,
+    required this.index,
+  });
 
   @override
   State<_AnimatedOrderCard> createState() => _AnimatedOrderCardState();
@@ -1057,24 +1121,24 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
-// ── Cancellation Timer (enhanced) ────────────────────────────────────────────
-class CancellationTimer extends StatefulWidget {
-  final DateTime createdAt;
+// ── Expiration Timer ─────────────────────────────────────────────────────────
+class ExpirationTimer extends StatefulWidget {
+  final DateTime expiryTime;
   final VoidCallback onExpired;
   final VoidCallback onCancel;
 
-  const CancellationTimer({
+  const ExpirationTimer({
     super.key,
-    required this.createdAt,
+    required this.expiryTime,
     required this.onExpired,
     required this.onCancel,
   });
 
   @override
-  State<CancellationTimer> createState() => _CancellationTimerState();
+  State<ExpirationTimer> createState() => _ExpirationTimerState();
 }
 
-class _CancellationTimerState extends State<CancellationTimer>
+class _ExpirationTimerState extends State<ExpirationTimer>
     with SingleTickerProviderStateMixin {
   Timer? _timer;
   late Duration _remainingTime;
@@ -1097,8 +1161,7 @@ class _CancellationTimerState extends State<CancellationTimer>
   }
 
   void _calculateRemainingTime() {
-    final expiryTime = widget.createdAt.add(const Duration(minutes: 5));
-    _remainingTime = expiryTime.difference(DateTime.now());
+    _remainingTime = widget.expiryTime.difference(DateTime.now());
     if (_remainingTime.isNegative) {
       _remainingTime = Duration.zero;
       _isExpired = true;
@@ -1132,9 +1195,17 @@ class _CancellationTimerState extends State<CancellationTimer>
   Widget build(BuildContext context) {
     if (_isExpired) return const SizedBox.shrink();
 
-    final minutes = _remainingTime.inMinutes.toString().padLeft(2, '0');
+    final hours = _remainingTime.inHours.toString().padLeft(2, '0');
+    final minutes = (_remainingTime.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (_remainingTime.inSeconds % 60).toString().padLeft(2, '0');
-    final isUrgent = _remainingTime.inSeconds <= 60;
+
+    final timeString = _remainingTime.inHours > 0
+        ? "$hours:$minutes:$seconds"
+        : "$minutes:$seconds";
+
+    final isUrgent =
+        _remainingTime.inMinutes <=
+        15; // Considered urgent in the last 15 minutes
 
     return Row(
       children: [
@@ -1144,7 +1215,10 @@ class _CancellationTimerState extends State<CancellationTimer>
             onPressed: widget.onCancel,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.redAccent,
-              side: BorderSide(color: Colors.redAccent.withOpacity(0.4), width: 1.5),
+              side: BorderSide(
+                color: Colors.redAccent.withOpacity(0.4),
+                width: 1.5,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -1190,7 +1264,7 @@ class _CancellationTimerState extends State<CancellationTimer>
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  "$minutes:$seconds",
+                  timeString,
                   style: TextStyle(
                     color: isUrgent ? Colors.redAccent : Colors.orange,
                     fontWeight: FontWeight.w900,
