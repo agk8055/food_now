@@ -131,7 +131,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
     _subscription = FirebaseFirestore.instance
         .collection('orders')
         .where('buyerId', isEqualTo: user.uid)
-        // Added 'expired' so they stay in the widget until dismissed
         .where('status', whereIn: ['pending', 'cancelled', 'expired'])
         .snapshots()
         .listen((snapshot) {
@@ -277,7 +276,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Glow border
                   Positioned.fill(
                     child: CustomPaint(
                       painter: _GlowBorderPainter(
@@ -292,7 +290,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Header
                         Row(
                           children: [
                             Container(
@@ -334,7 +331,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                         ),
                         const SizedBox(height: 24),
 
-                        // QR Container
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
@@ -369,7 +365,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                         ),
                         const SizedBox(height: 24),
 
-                        // OTP Display
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -406,7 +401,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                         ),
                         const SizedBox(height: 20),
 
-                        // Close Button
                         GestureDetector(
                           onTap: () => Navigator.pop(ctx),
                           child: Container(
@@ -457,18 +451,11 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
       expiryTime = (data['expiryTime'] as Timestamp).toDate();
     }
 
-    // Dynamic Expiration Check
+    // Dynamic Expiration Check (UI ONLY - Database write removed to prevent loop)
     if (status == 'pending' &&
         expiryTime != null &&
         DateTime.now().isAfter(expiryTime)) {
       status = 'expired';
-      // Automatically update the document in firestore since it has expired
-      Future.microtask(() {
-        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
-          'status': 'expired',
-          'cancelReason': 'Order was not picked up before the expiry time.',
-        });
-      });
     }
 
     final isCancelled = status == 'cancelled';
@@ -494,7 +481,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
             : const EdgeInsets.symmetric(horizontal: 5),
         child: Stack(
           children: [
-            // Card Body
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               decoration: BoxDecoration(
@@ -527,7 +513,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
               ),
               child: Row(
                 children: [
-                  // ─── Animated Icon ───
                   _AnimatedIconBadge(
                     isCancelled: isCancelled,
                     isExpired: isExpired,
@@ -535,7 +520,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                   ),
                   const SizedBox(width: 13),
 
-                  // ─── Center Details ───
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,14 +591,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                                 _CompactExpirationTimer(
                                   expiryTime: expiryTime,
                                   onExpired: () {
-                                    FirebaseFirestore.instance
-                                        .collection('orders')
-                                        .doc(orderId)
-                                        .update({
-                                          'status': 'expired',
-                                          'cancelReason':
-                                              'Order was not picked up before the expiry time.',
-                                        });
+                                    // UI automatically handles the state switch
+                                    // Backend Cron Job will update the DB. Do nothing here.
                                   },
                                 ),
                                 const SizedBox(height: 4),
@@ -657,7 +635,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                     ),
                   ),
 
-                  // ─── Right Action ───
                   if (isInactive)
                     _DismissButton(
                       onTap: () async {
@@ -686,8 +663,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                 ],
               ),
             ),
-
-            // Subtle top highlight line
             Positioned(
               top: 0,
               left: 24,
@@ -751,7 +726,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      height: 98, // Slightly taller to fit the timer row
+                      height: 98,
                       child: PageView.builder(
                         controller: _pageController,
                         onPageChanged: (index) {
@@ -772,8 +747,6 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    // Dot indicators
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(_pendingOrders.length, (index) {
@@ -844,7 +817,6 @@ class _AnimatedIconBadge extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Outer pulse ring (only for active orders)
         if (!isInactive)
           AnimatedBuilder(
             animation: pulseAnimation,
@@ -1099,7 +1071,6 @@ class _CompactExpirationTimerState extends State<_CompactExpirationTimer> {
         ? "$hours:$minutes:$seconds"
         : "$minutes:$seconds";
 
-    // Change to red if 15 minutes or less
     final isUrgent = _remainingTime.inMinutes <= 15;
     final color = isUrgent ? _AppColors.cancelRed : _AppColors.primary;
 

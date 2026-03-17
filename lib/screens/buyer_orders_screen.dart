@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../widgets/custom_loader.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
@@ -25,13 +26,31 @@ class _C {
   static const Color expiredGreyLight = Color(0xFFF3F4F6);
 }
 
-class BuyerOrdersScreen extends StatelessWidget {
+class BuyerOrdersScreen extends StatefulWidget {
   const BuyerOrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  State<BuyerOrdersScreen> createState() => _BuyerOrdersScreenState();
+}
 
+class _BuyerOrdersScreenState extends State<BuyerOrdersScreen> {
+  final User? _user = FirebaseAuth.instance.currentUser;
+  Stream<QuerySnapshot>? _ordersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_user != null) {
+      _ordersStream = FirebaseFirestore.instance
+          .collection('orders')
+          .where('buyerId', isEqualTo: _user!.uid)
+          .orderBy('createdAt', descending: true)
+          .snapshots();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _C.bg,
       body: NestedScrollView(
@@ -100,14 +119,10 @@ class BuyerOrdersScreen extends StatelessWidget {
             ),
           ),
         ],
-        body: user == null
+        body: _user == null
             ? _buildLoggedOutState()
             : StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('orders')
-                    .where('buyerId', isEqualTo: user.uid)
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
+                stream: _ordersStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return _buildErrorState(snapshot.error.toString());
@@ -121,22 +136,19 @@ class BuyerOrdersScreen extends StatelessWidget {
                     return _buildEmptyState();
                   }
 
-                  return AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    child: ListView.builder(
-                      key: ValueKey(docs.length),
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final doc = docs[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        return _AnimatedOrderCard(
-                          data: data,
-                          orderId: doc.id,
-                          index: index,
-                        );
-                      },
-                    ),
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      return _AnimatedOrderCard(
+                        key: ValueKey(doc.id),
+                        data: data,
+                        orderId: doc.id,
+                        index: index,
+                      );
+                    },
                   );
                 },
               ),
@@ -303,6 +315,7 @@ class _AnimatedOrderCard extends StatefulWidget {
   final int index;
 
   const _AnimatedOrderCard({
+    super.key,
     required this.data,
     required this.orderId,
     required this.index,
@@ -354,12 +367,64 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
-// ─── Order Card ───────────────────────────────────────────────────────────────
-class _OrderCard extends StatelessWidget {
+// ─── Stateful Order Card (Handles Real-time Expiry Updates) ───────────────────
+class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final String orderId;
 
   const _OrderCard({required this.data, required this.orderId});
+
+  @override
+  State<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends State<_OrderCard> {
+  Timer? _localExpiryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupExpiryTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OrderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _setupExpiryTimer();
+  }
+
+  void _setupExpiryTimer() {
+    _localExpiryTimer?.cancel();
+
+    final status = widget.data['status'] ?? 'pending';
+    if (status != 'pending') return;
+
+    if (widget.data['expiryTime'] != null) {
+      final expiryTime = (widget.data['expiryTime'] as Timestamp).toDate();
+      final now = DateTime.now();
+
+      if (expiryTime.isAfter(now)) {
+        // Calculate exact duration until expiry
+        final durationUntilExpiry = expiryTime.difference(now);
+
+        // Schedule a single UI rebuild exactly when the order expires
+        _localExpiryTimer = Timer(durationUntilExpiry, () {
+          if (mounted) {
+            setState(() {
+              // This empty setState forces the build method to run again,
+              // which will recalculate displayStatus to 'expired'
+            });
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _localExpiryTimer?.cancel();
+    super.dispose();
+  }
 
   void _showQRCode(BuildContext context, String orderId, String otp) {
     final qrData = "foodnow_pickup:$orderId:$otp";
@@ -569,24 +634,26 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String shopName = data['shopName'] ?? 'Unknown Shop';
-    final String status = data['status'] ?? 'pending';
-    final String otp = data['otp'] ?? '----';
-    final double totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
-    final List<dynamic> items = data['items'] ?? [];
+    final String shopName = widget.data['shopName'] ?? 'Unknown Shop';
+    final String status = widget.data['status'] ?? 'pending';
+    final String otp = widget.data['otp'] ?? '----';
+    final double totalAmount =
+        (widget.data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final List<dynamic> items = widget.data['items'] ?? [];
 
     String formattedDate = "Just now";
-    if (data['createdAt'] != null) {
-      final DateTime date = (data['createdAt'] as Timestamp).toDate();
+    if (widget.data['createdAt'] != null) {
+      final DateTime date = (widget.data['createdAt'] as Timestamp).toDate();
       formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(date);
     }
 
     DateTime? expiryTime;
-    if (data['expiryTime'] != null) {
-      expiryTime = (data['expiryTime'] as Timestamp).toDate();
+    if (widget.data['expiryTime'] != null) {
+      expiryTime = (widget.data['expiryTime'] as Timestamp).toDate();
     }
 
     // Dynamic Expiration Check (UI ONLY - Backend handles DB update)
+    // Because of the localized timer, this will instantly trigger when time is up.
     String displayStatus = status;
     if (status == 'pending' &&
         expiryTime != null &&
@@ -761,7 +828,7 @@ class _OrderCard extends StatelessWidget {
 
             // ── Cancellation / Expiry Reason ──
             if ((displayStatus == 'cancelled' || displayStatus == 'expired') &&
-                data['cancelReason'] != null)
+                widget.data['cancelReason'] != null)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -812,7 +879,7 @@ class _OrderCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            data['cancelReason'],
+                            widget.data['cancelReason'],
                             style: TextStyle(
                               fontSize: 13,
                               color: displayStatus == 'expired'
@@ -1027,7 +1094,8 @@ class _OrderCard extends StatelessWidget {
 
                         // QR Button
                         _QRButton(
-                          onTap: () => _showQRCode(context, orderId, otp),
+                          onTap: () =>
+                              _showQRCode(context, widget.orderId, otp),
                         ),
                       ],
                     ),
@@ -1040,7 +1108,7 @@ class _OrderCard extends StatelessWidget {
               FutureBuilder<QuerySnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('reviews')
-                    .where('orderId', isEqualTo: orderId)
+                    .where('orderId', isEqualTo: widget.orderId)
                     .limit(1)
                     .get(),
                 builder: (context, snapshot) {
@@ -1072,7 +1140,7 @@ class _OrderCard extends StatelessWidget {
                   return AnimatedSwitcher(
                     duration: const Duration(milliseconds: 350),
                     child: Container(
-                      key: ValueKey(orderId),
+                      key: ValueKey(widget.orderId),
                       decoration: BoxDecoration(
                         color: _C.surface,
                         border: Border(

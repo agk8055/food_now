@@ -214,7 +214,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                   final status = data['status'] ?? 'pending';
                   final expiryTimestamp = data['expiryTime'] as Timestamp?;
 
-                  // This is where we ensure dynamically expired orders show in "Completed/Past"
+                  // Ensure dynamically expired orders show in "Completed/Past"
                   final isExpired =
                       status == 'pending' &&
                       expiryTimestamp != null &&
@@ -382,7 +382,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.65,
-        width: double.infinity,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -425,7 +424,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             const SizedBox(height: 28),
             Text(
               isPendingTab ? "No active orders" : "No past orders",
-              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 21,
                 fontWeight: FontWeight.w900,
@@ -483,10 +481,11 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     final double totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
     final List<dynamic> items = data['items'] ?? [];
 
+    DateTime createdAt = DateTime.now();
     String formattedDate = "Just now";
     if (data['createdAt'] != null) {
-      final DateTime date = (data['createdAt'] as Timestamp).toDate();
-      formattedDate = DateFormat('MMM dd • hh:mm a').format(date);
+      createdAt = (data['createdAt'] as Timestamp).toDate();
+      formattedDate = DateFormat('MMM dd • hh:mm a').format(createdAt);
     }
 
     DateTime? expiryTime;
@@ -575,7 +574,6 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                 isExpired: displayStatus == 'expired',
               ),
 
-            // Removed the expired check from refund banner just like buyer app
             if (displayStatus == 'cancelled') _buildRefundBanner(),
 
             // ── ITEMS ────────────────────────────────────────────────
@@ -588,6 +586,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
               data: data,
               displayStatus: displayStatus,
               expiryTime: expiryTime,
+              createdAt: createdAt,
               otp: otp,
               buyerName: buyerName,
               totalAmount: totalAmount,
@@ -892,6 +891,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
     required Map<String, dynamic> data,
     required String displayStatus,
     required DateTime? expiryTime,
+    required DateTime createdAt,
     required String otp,
     required String buyerName,
     required double totalAmount,
@@ -945,10 +945,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             const SizedBox(height: 14),
             ExpirationTimer(
               expiryTime: expiryTime,
-              onExpired: () {
-                // UI will automatically update based on the dynamic check,
-                // and the backend cron job handles the actual Firestore update.
-              },
+              createdAt: createdAt,
+              onExpired: () {},
               onCancel: () => _showCancelOrderDialog(
                 context,
                 orderId,
@@ -1112,15 +1110,17 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
-// ── Expiration Timer ─────────────────────────────────────────────────────────
+// ── Expiration & Cancellation Timer ──────────────────────────────────────────
 class ExpirationTimer extends StatefulWidget {
   final DateTime expiryTime;
+  final DateTime createdAt;
   final VoidCallback onExpired;
   final VoidCallback onCancel;
 
   const ExpirationTimer({
     super.key,
     required this.expiryTime,
+    required this.createdAt,
     required this.onExpired,
     required this.onCancel,
   });
@@ -1134,6 +1134,10 @@ class _ExpirationTimerState extends State<ExpirationTimer>
   Timer? _timer;
   late Duration _remainingTime;
   bool _isExpired = false;
+
+  bool _canCancel = false;
+  Duration _cancelRemaining = Duration.zero;
+
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
 
@@ -1152,10 +1156,23 @@ class _ExpirationTimerState extends State<ExpirationTimer>
   }
 
   void _calculateRemainingTime() {
-    _remainingTime = widget.expiryTime.difference(DateTime.now());
+    final now = DateTime.now();
+    _remainingTime = widget.expiryTime.difference(now);
+
     if (_remainingTime.isNegative) {
       _remainingTime = Duration.zero;
       _isExpired = true;
+    }
+
+    // 5-minute cancellation window logic
+    final timeSinceCreated = now.difference(widget.createdAt);
+    if (timeSinceCreated.inSeconds < 300) {
+      // 300 seconds = 5 minutes
+      _canCancel = true;
+      _cancelRemaining = const Duration(minutes: 5) - timeSinceCreated;
+    } else {
+      _canCancel = false;
+      _cancelRemaining = Duration.zero;
     }
   }
 
@@ -1199,36 +1216,44 @@ class _ExpirationTimerState extends State<ExpirationTimer>
         15; // Considered urgent in the last 15 minutes
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // Cancel button
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: widget.onCancel,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.redAccent,
-              side: BorderSide(
-                color: Colors.redAccent.withOpacity(0.4),
-                width: 1.5,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              backgroundColor: Colors.redAccent.withOpacity(0.03),
-            ),
-            icon: const Icon(Icons.cancel_outlined, size: 17),
-            label: const Text(
-              "CANCEL ORDER",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 0.5,
+        // Cancellation Button (Only visible within the first 5 minutes)
+        if (_canCancel) ...[
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: OutlinedButton.icon(
+                key: ValueKey(_cancelRemaining.inSeconds),
+                onPressed: widget.onCancel,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: BorderSide(
+                    color: Colors.redAccent.withOpacity(0.4),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  backgroundColor: Colors.redAccent.withOpacity(0.03),
+                ),
+                icon: const Icon(Icons.cancel_outlined, size: 17),
+                label: Text(
+                  "CANCEL (${_cancelRemaining.inMinutes}:${(_cancelRemaining.inSeconds % 60).toString().padLeft(2, '0')})",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        // Timer pill
+          const SizedBox(width: 12),
+        ],
+
+        // Expiration Timer Pill
         ScaleTransition(
           scale: isUrgent ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
           child: AnimatedContainer(
