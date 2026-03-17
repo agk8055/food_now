@@ -156,20 +156,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.all(Colors.white.withOpacity(0.12)),
-                  ),
+                  style:
+                      ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.all(
+                          Colors.white.withOpacity(0.12),
+                        ),
+                      ),
                   child: const Text(
                     "Login / Sign Up",
                     style: TextStyle(
@@ -235,22 +240,31 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
           .doc(widget.user.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Scaffold(body: Center(child: CustomLoader()));
         }
 
         final userData = snapshot.data?.data() as Map<String, dynamic>?;
 
         String displayName = (userData?['name'] as String?) ?? "";
-        if (displayName.isEmpty) displayName = widget.user.displayName ?? "User";
-        final String? profileImage = userData?['profileImage'] ?? widget.user.photoURL;
+        if (displayName.isEmpty)
+          displayName = widget.user.displayName ?? "User";
+        final String? profileImage =
+            userData?['profileImage'] ?? widget.user.photoURL;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F6F8),
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              _buildSliverAppBar(context, widget.user, displayName, profileImage, userData),
+              _buildSliverAppBar(
+                context,
+                widget.user,
+                displayName,
+                profileImage,
+                userData,
+              ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -267,24 +281,28 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
                               icon: Icons.receipt_long_rounded,
                               title: "Your Orders",
                               subtitle: "View past orders & reorder",
-                              iconBgColor: const Color(0xFFE8F5E9),
-                              iconColor: const Color(0xFF2E7D32),
+                              iconBgColor: Colors.grey.shade100,
+                              iconColor: Colors.grey.shade700,
                               isFirst: true,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const BuyerOrdersScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const BuyerOrdersScreen(),
+                                ),
                               ),
                             ),
                             _buildMenuItem(
                               icon: Icons.favorite_rounded,
                               title: "Favorites",
                               subtitle: "Your favourite restaurants & items",
-                              iconBgColor: const Color(0xFFFFEBEE),
-                              iconColor: const Color(0xFFD32F2F),
+                              iconBgColor: Colors.grey.shade100,
+                              iconColor: Colors.grey.shade700,
                               isLast: true,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const FavoritesScreen(),
+                                ),
                               ),
                             ),
                           ],
@@ -302,24 +320,28 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
                               icon: Icons.notifications_active_rounded,
                               title: "Notifications",
                               subtitle: "Manage alerts & preferences",
-                              iconBgColor: const Color(0xFFFFF8E1),
-                              iconColor: const Color(0xFFF57F17),
+                              iconBgColor: Colors.grey.shade100,
+                              iconColor: Colors.grey.shade700,
                               isFirst: true,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const NotificationsScreen(),
+                                ),
                               ),
                             ),
                             _buildMenuItem(
                               icon: Icons.help_outline_rounded,
                               title: "Help & Support",
                               subtitle: "FAQs & contact us",
-                              iconBgColor: const Color(0xFFE3F2FD),
-                              iconColor: const Color(0xFF1565C0),
+                              iconBgColor: Colors.grey.shade100,
+                              iconColor: Colors.grey.shade700,
                               isLast: true,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const HelpSupportScreen(),
+                                ),
                               ),
                             ),
                           ],
@@ -356,10 +378,12 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
       ),
       child: SlideTransition(
         position: Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
-            .animate(CurvedAnimation(
-          parent: _animController,
-          curve: Interval(start, end, curve: Curves.easeOutCubic),
-        )),
+            .animate(
+              CurvedAnimation(
+                parent: _animController,
+                curve: Interval(start, end, curve: Curves.easeOutCubic),
+              ),
+            ),
         child: child,
       ),
     );
@@ -395,16 +419,23 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => EditProfileScreen(user: user, userData: userData),
+                      builder: (_) =>
+                          EditProfileScreen(user: user, userData: userData),
                     ),
                   ),
                   borderRadius: BorderRadius.circular(22),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 9,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.18),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.25),
+                        width: 1,
+                      ),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -430,7 +461,10 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+        stretchModes: const [
+          StretchMode.zoomBackground,
+          StretchMode.blurBackground,
+        ],
         background: Container(
           decoration: const BoxDecoration(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
@@ -476,89 +510,102 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisSize: MainAxisSize.max,
                     children: [
-                    // Avatar
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
+                      // Avatar
+                      Container(
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: primaryGreen.withOpacity(0.15),
+                          color: Colors.white,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: SizedBox(
-                          width: 86,
-                          height: 86,
-                          child: ClipOval(
-                            child: (profileImage != null && profileImage.isNotEmpty)
-                                ? Image.network(
-                                    profileImage,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _buildAvatarPlaceholder(),
-                                  )
-                                : _buildAvatarPlaceholder(),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.6,
-                        height: 1.1,
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // Email pill
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                          padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+                            color: primaryGreen.withOpacity(0.15),
+                            shape: BoxShape.circle,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.mail_outline_rounded, color: Colors.white.withOpacity(0.8), size: 13),
-                              const SizedBox(width: 6),
-                              Text(
-                                widget.user.email ?? "No email provided",
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                            ],
+                          child: SizedBox(
+                            width: 86,
+                            height: 86,
+                            child: ClipOval(
+                              child:
+                                  (profileImage != null &&
+                                      profileImage.isNotEmpty)
+                                  ? Image.network(
+                                      profileImage,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _buildAvatarPlaceholder(),
+                                    )
+                                  : _buildAvatarPlaceholder(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 14),
+
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.6,
+                          height: 1.1,
+                        ),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Email pill
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.15),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.mail_outline_rounded,
+                                  color: Colors.white.withOpacity(0.8),
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.user.email ?? "No email provided",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -748,7 +795,11 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
                 color: const Color(0xFFD32F2F).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.logout_rounded, size: 17, color: Color(0xFFD32F2F)),
+              child: const Icon(
+                Icons.logout_rounded,
+                size: 17,
+                color: Color(0xFFD32F2F),
+              ),
             ),
             const SizedBox(width: 12),
             const Text(

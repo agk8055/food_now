@@ -119,7 +119,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                 "Are you sure you want to log out of your shop profile?",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: Colors.grey[600], fontSize: 14, height: 1.5),
+                    color: Colors.grey[800], fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 28),
               Row(
@@ -135,7 +135,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                       onPressed: () => Navigator.pop(context),
                       child: Text("Cancel",
                           style: TextStyle(
-                              color: Colors.grey[700],
+                              color: Colors.black87,
                               fontWeight: FontWeight.w600)),
                     ),
                   ),
@@ -225,7 +225,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                       size: 64, color: Colors.grey[300]),
                   const SizedBox(height: 16),
                   Text("Shop profile not found.",
-                      style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 16)),
                 ],
               ),
             );
@@ -445,21 +445,21 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
             icon: Icons.location_on_rounded,
             label: address.isNotEmpty ? "Location Set" : "No Location",
             iconColor:
-                address.isNotEmpty ? Colors.redAccent : Colors.grey[400]!,
+                address.isNotEmpty ? Colors.grey[700]! : Colors.grey[400]!,
             active: address.isNotEmpty,
           ),
           const SizedBox(width: 10),
           _buildStatChip(
             icon: Icons.map_rounded,
             label: hasMap ? "Maps Linked" : "No Map",
-            iconColor: hasMap ? _primaryGreen : Colors.grey[400]!,
+            iconColor: hasMap ? Colors.grey[700]! : Colors.grey[400]!,
             active: hasMap,
           ),
           const SizedBox(width: 10),
           _buildStatChip(
             icon: Icons.email_rounded,
             label: "Email Set",
-            iconColor: Colors.blueAccent,
+            iconColor: Colors.grey[700]!,
             active: true,
           ),
         ],
@@ -498,7 +498,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
               style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: active ? Colors.black87 : Colors.grey[400]),
+                  color: active ? Colors.black87 : Colors.grey[600]),
             ),
           ],
         ),
@@ -562,7 +562,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                   isOpen
                       ? Icons.storefront_rounded
                       : Icons.do_not_disturb_on_rounded,
-                  color: isOpen ? _primaryGreen : Colors.grey[400],
+                  color: isOpen ? Colors.grey[700] : Colors.grey[400],
                   size: 26,
                 ),
               ),
@@ -581,7 +581,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                         color:
-                            isOpen ? _primaryGreen : Colors.grey[600],
+                            isOpen ? Colors.grey[700]! : Colors.grey[800]!,
                       ),
                     ),
                   ),
@@ -591,7 +591,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                         ? "Visible to customers & accepting orders"
                         : "Hidden from customers",
                     style:
-                        TextStyle(color: Colors.grey[500], fontSize: 12, height: 1.4),
+                        TextStyle(color: Colors.grey[700], fontSize: 12, height: 1.4),
                   ),
                 ],
               ),
@@ -622,7 +622,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey[500],
+                  color: Colors.grey[700],
                   letterSpacing: 0.8),
             ),
           ),
@@ -643,7 +643,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                   Icons.location_on_rounded,
                   "Location",
                   data['location']?['address'] ?? "No address set",
-                  iconColor: Colors.redAccent,
+                  iconColor: Colors.grey[700]!,
                   isFirst: true,
                 ),
                 _buildDivider(),
@@ -651,7 +651,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                   Icons.alternate_email_rounded,
                   "Public Email",
                   data['publicEmail'] ?? _user!.email ?? "No email",
-                  iconColor: Colors.blueAccent,
+                  iconColor: Colors.grey[700]!,
                 ),
                 _buildDivider(),
                 _buildModernInfoTile(
@@ -659,7 +659,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                   "Unique Shop ID",
                   doc.id,
                   isCopyable: true,
-                  iconColor: Colors.amber[700]!,
+                  iconColor: Colors.grey[700]!,
                   isLast: data['mapUrl']?.isNotEmpty != true,
                 ),
                 if (data['mapUrl']?.isNotEmpty == true) ...[
@@ -668,7 +668,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                     Icons.map_rounded,
                     "Navigation",
                     "Open in Google Maps",
-                    iconColor: const Color(0xFF00bf63),
+                    iconColor: Colors.grey[700]!,
                     isLink: true,
                     isLast: true,
                     onTap: () async {
@@ -759,7 +759,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                       title,
                       style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey[500],
+                          color: Colors.grey[700],
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.3),
                     ),
@@ -797,8 +797,8 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
                     color: const Color(0xFF00bf63).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 13, color: Color(0xFF00bf63)),
+                  child: Icon(Icons.arrow_forward_ios_rounded,
+                      size: 13, color: Colors.grey[700]),
                 ),
             ],
           ),

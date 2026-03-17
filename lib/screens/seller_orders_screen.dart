@@ -382,6 +382,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.65,
+        width: double.infinity,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -424,6 +425,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             const SizedBox(height: 28),
             Text(
               isPendingTab ? "No active orders" : "No past orders",
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 21,
                 fontWeight: FontWeight.w900,
