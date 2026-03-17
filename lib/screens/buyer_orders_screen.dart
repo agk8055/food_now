@@ -586,19 +586,12 @@ class _OrderCard extends StatelessWidget {
       expiryTime = (data['expiryTime'] as Timestamp).toDate();
     }
 
-    // Dynamic Expiration Check
+    // Dynamic Expiration Check (UI ONLY - Backend handles DB update)
     String displayStatus = status;
     if (status == 'pending' &&
         expiryTime != null &&
         DateTime.now().isAfter(expiryTime)) {
       displayStatus = 'expired';
-      // Automatically update the document in firestore since it has expired
-      Future.microtask(() {
-        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
-          'status': 'expired',
-          'cancelReason': 'Order was not picked up before the expiry time.',
-        });
-      });
     }
 
     // Status config
@@ -836,8 +829,8 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
 
-            // ── Refund Notice ──
-            if (displayStatus == 'cancelled' || displayStatus == 'expired')
+            // ── Refund Notice (Cancelled Only) ──
+            if (displayStatus == 'cancelled')
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),

@@ -213,6 +213,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                   final data = doc.data() as Map<String, dynamic>;
                   final status = data['status'] ?? 'pending';
                   final expiryTimestamp = data['expiryTime'] as Timestamp?;
+
+                  // This is where we ensure dynamically expired orders show in "Completed/Past"
                   final isExpired =
                       status == 'pending' &&
                       expiryTimestamp != null &&
@@ -490,19 +492,12 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
       expiryTime = (data['expiryTime'] as Timestamp).toDate();
     }
 
-    // Dynamic Expiration Check
+    // Dynamic Expiration Check (UI ONLY - Backend handles DB update)
     String displayStatus = status;
     if (status == 'pending' &&
         expiryTime != null &&
         DateTime.now().isAfter(expiryTime)) {
       displayStatus = 'expired';
-      // Automatically update the document in firestore since it has expired
-      Future.microtask(() {
-        FirebaseFirestore.instance.collection('orders').doc(orderId).update({
-          'status': 'expired',
-          'cancelReason': 'Order was not picked up before the expiry time.',
-        });
-      });
     }
 
     Color statusColor;
@@ -578,8 +573,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                 isExpired: displayStatus == 'expired',
               ),
 
-            if (displayStatus == 'cancelled' || displayStatus == 'expired')
-              _buildRefundBanner(),
+            // Removed the expired check from refund banner just like buyer app
+            if (displayStatus == 'cancelled') _buildRefundBanner(),
 
             // ── ITEMS ────────────────────────────────────────────────
             _buildItemsList(items),
@@ -949,14 +944,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
             ExpirationTimer(
               expiryTime: expiryTime,
               onExpired: () {
-                FirebaseFirestore.instance
-                    .collection('orders')
-                    .doc(orderId)
-                    .update({
-                      'status': 'expired',
-                      'cancelReason':
-                          'Order was not picked up before the expiry time.',
-                    });
+                // UI will automatically update based on the dynamic check,
+                // and the backend cron job handles the actual Firestore update.
               },
               onCancel: () => _showCancelOrderDialog(
                 context,
