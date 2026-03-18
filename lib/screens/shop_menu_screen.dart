@@ -384,7 +384,8 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     final String category = data['category'] ?? 'Restaurant';
     final String address =
         data['location']?['address'] ?? 'Address not available';
-    final String rating = (data['rating'] ?? '4.0').toString();
+    final double parsedRating = double.tryParse(data['rating']?.toString() ?? '4.0') ?? 4.0;
+    final String rating = parsedRating.toStringAsFixed(1);
     final String mapUrl = data['mapUrl'] ?? '';
 
     return Column(

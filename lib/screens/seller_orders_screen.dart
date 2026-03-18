@@ -840,7 +840,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                       Text(
                         () {
                           final now = DateTime.now();
-                          final isToday = expiryTime!.year == now.year &&
+                          final isToday = expiryTime.year == now.year &&
                               expiryTime.month == now.month &&
                               expiryTime.day == now.day;
                           return isToday
