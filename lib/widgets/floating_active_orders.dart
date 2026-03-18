@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:lottie/lottie.dart';
 import 'package:food_now/screens/buyer_orders_screen.dart';
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
@@ -272,9 +273,29 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
         );
       },
       pageBuilder: (ctx, _, __) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
+        bool hasAutoClosed = false;
+
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('orders').doc(orderId).snapshots(),
+          builder: (context, snapshot) {
+            bool isCompleted = false;
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              if (data['status'] == 'completed') {
+                isCompleted = true;
+                if (!hasAutoClosed) {
+                  hasAutoClosed = true;
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
+                  });
+                }
+              }
+            }
+            return Center(
+              child: Material(
+                color: Colors.transparent,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 32),
               decoration: BoxDecoration(
@@ -361,23 +382,35 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(24),
-                            child: RepaintBoundary(
-                              child: QrImageView(
-                                data: qrData,
-                                version: QrVersions.auto,
-                                size: 220.0,
-                                backgroundColor: Colors.transparent,
-                                eyeStyle: const QrEyeStyle(
-                                  eyeShape: QrEyeShape.circle,
-                                  color: _AppColors.primary,
-                                ),
-                                dataModuleStyle: const QrDataModuleStyle(
-                                  dataModuleShape: QrDataModuleShape.circle,
-                                  color: _AppColors.primary,
-                                ),
-                                semanticsLabel: 'Order QR Code',
-                              ),
-                            ),
+                            child: isCompleted
+                                ? Container(
+                                    width: 220,
+                                    height: 220,
+                                    color: Colors.transparent,
+                                    child: Lottie.asset(
+                                      'assets/animations/Success.json',
+                                      width: 200,
+                                      height: 200,
+                                      repeat: false,
+                                    ),
+                                  )
+                                : RepaintBoundary(
+                                    child: QrImageView(
+                                      data: qrData,
+                                      version: QrVersions.auto,
+                                      size: 220.0,
+                                      backgroundColor: Colors.transparent,
+                                      eyeStyle: const QrEyeStyle(
+                                        eyeShape: QrEyeShape.circle,
+                                        color: _AppColors.primary,
+                                      ),
+                                      dataModuleStyle: const QrDataModuleStyle(
+                                        dataModuleShape: QrDataModuleShape.circle,
+                                        color: _AppColors.primary,
+                                      ),
+                                      semanticsLabel: 'Order QR Code',
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -448,6 +481,8 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
               ),
             ),
           ),
+        );
+        },
         );
       },
     );

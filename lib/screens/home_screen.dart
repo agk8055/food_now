@@ -44,9 +44,6 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedIndex = 0;
   bool _isCheckingServiceability = true;
 
-  StreamSubscription<QuerySnapshot>? _ordersSubscription;
-  final Set<String> _processingOrders = {};
-
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -63,58 +60,52 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     _checkServiceability();
-    _listenForCompletedOrders();
+    _checkPendingReviews();
   }
 
   // ── Business logic ────────────────────────────────────────────────────────
 
-  void _listenForCompletedOrders() {
+  void _checkPendingReviews() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    _ordersSubscription = FirebaseFirestore.instance
-        .collection('orders')
-        .where('buyerId', isEqualTo: user.uid)
-        .where('status', isEqualTo: 'completed')
-        .snapshots()
-        .listen((snapshot) {
-          for (var change in snapshot.docChanges) {
-            if (change.type == DocumentChangeType.added ||
-                change.type == DocumentChangeType.modified) {
-              final data = change.doc.data();
-              if (data != null) {
-                final orderId = change.doc.id;
-                final shopId = data['shopId'] ?? '';
-                final shopName = data['shopName'] ?? 'Unknown Shop';
-                final buyerId = data['buyerId'] ?? '';
-                final bool isReviewed = data['reviewed'] == true;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('buyerId', isEqualTo: user.uid)
+          .where('status', isEqualTo: 'completed')
+          .get();
 
-                if (buyerId == user.uid &&
-                    shopId.isNotEmpty &&
-                    !isReviewed &&
-                    !_processingOrders.contains(orderId)) {
-                  _processingOrders.add(orderId);
-                  Future.delayed(const Duration(seconds: 3), () {
-                    if (mounted) {
-                      ReviewBottomSheet.show(
-                        context,
-                        orderId: orderId,
-                        shopId: shopId,
-                        shopName: shopName,
-                        buyerId: buyerId,
-                      );
-                    }
-                  });
-                }
-              }
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final orderId = doc.id;
+        final shopId = data['shopId'] ?? '';
+        final shopName = data['shopName'] ?? 'Unknown Shop';
+        final buyerId = data['buyerId'] ?? '';
+        final bool isReviewed = data['reviewed'] == true;
+
+        if (buyerId == user.uid && shopId.isNotEmpty && !isReviewed) {
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              ReviewBottomSheet.show(
+                context,
+                orderId: orderId,
+                shopId: shopId,
+                shopName: shopName,
+                buyerId: buyerId,
+              );
             }
-          }
-        });
+          });
+          break; // Show one at a time on each app start
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking pending reviews: $e");
+    }
   }
 
   @override
   void dispose() {
-    _ordersSubscription?.cancel();
     _fadeController.dispose();
     super.dispose();
   }
