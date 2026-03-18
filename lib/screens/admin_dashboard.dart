@@ -145,10 +145,12 @@ class _AdminDashboardState extends State<AdminDashboard>
           .where('verificationStatus', isEqualTo: status)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError)
+        if (snapshot.hasError) {
           return const Center(child: Text('Something went wrong'));
-        if (snapshot.connectionState == ConnectionState.waiting)
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CustomLoader());
+        }
 
         final allDocs = snapshot.data!.docs;
 
@@ -550,10 +552,12 @@ class _DetailsBottomSheet extends StatelessWidget {
                           .doc(ownerId)
                           .get(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting)
+                        if (snapshot.connectionState == ConnectionState.waiting) {
                           return const LinearProgressIndicator(minHeight: 2);
-                        if (!snapshot.hasData || !snapshot.data!.exists)
+                        }
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
                           return const Text("Owner details missing");
+                        }
                         final user =
                             snapshot.data!.data() as Map<String, dynamic>;
                         return Column(

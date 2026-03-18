@@ -334,6 +334,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
     }
   }
 
+  String _formatItemName(String name) {
+    if (name.trim().isEmpty) return name;
+    return name.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return word;
+      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+    }).join(' ');
+  }
+
   // ── Glassmorphic Button ────────────────────────────────────────────────────
 
   Widget _buildGlassButton({
@@ -741,7 +749,7 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
 
                         // Item name
                         Text(
-                          item['name'],
+                          _formatItemName(item['name'] ?? ''),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -836,9 +844,14 @@ class _ShopMenuScreenState extends State<ShopMenuScreen>
                                           _PlaceholderImage(
                                             size: 108,
                                             height: 92,
+                                            itemName: item['name'],
                                           ),
                                     )
-                                  : _PlaceholderImage(size: 108, height: 92),
+                                  : _PlaceholderImage(
+                                      size: 108,
+                                      height: 92,
+                                      itemName: item['name'],
+                                    ),
                             ],
                           ),
                         ),
@@ -1690,11 +1703,21 @@ class _ExpiryBadge extends StatelessWidget {
 class _PlaceholderImage extends StatelessWidget {
   final double size;
   final double height;
+  final String? itemName;
 
-  const _PlaceholderImage({required this.size, required this.height});
+  const _PlaceholderImage({
+    required this.size,
+    required this.height,
+    this.itemName,
+  });
 
   @override
   Widget build(BuildContext context) {
+    String firstLetter = '';
+    if (itemName != null && itemName!.trim().isNotEmpty) {
+      firstLetter = itemName!.trim().substring(0, 1).toUpperCase();
+    }
+
     return Container(
       width: size,
       height: height,
@@ -1702,7 +1725,18 @@ class _PlaceholderImage extends StatelessWidget {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
+      child: firstLetter.isNotEmpty
+          ? Center(
+              child: Text(
+                firstLetter,
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            )
+          : Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
     );
   }
 }

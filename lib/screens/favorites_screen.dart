@@ -71,7 +71,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
           backgroundColor: Colors.white,
           elevation: 0,
-          leading: const BackButton(color: Colors.black),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
           centerTitle: true,
         ),
         body: const Center(
@@ -89,7 +92,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot>(

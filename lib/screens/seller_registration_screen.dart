@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
-import '../widgets/custom_loader.dart';
 import 'seller_dashboard.dart';
 
 import 'package:food_now/services/location_service.dart';

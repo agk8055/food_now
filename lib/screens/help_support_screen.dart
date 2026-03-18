@@ -93,11 +93,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen>
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.black87,
-            size: 18,
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),

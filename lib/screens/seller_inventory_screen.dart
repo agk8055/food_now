@@ -102,13 +102,16 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError)
+                if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
-                if (snapshot.connectionState == ConnectionState.waiting)
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CustomLoader());
+                }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return _buildEmptyState();
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(
@@ -533,12 +536,13 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
                               const Duration(days: 30),
                             ),
                           );
-                          if (picked != null)
+                          if (picked != null) {
                             setModalState(
                               () => expiryDateController.text = DateFormat(
                                 'yyyy-MM-dd',
                               ).format(picked),
                             );
+                          }
                         },
                         child: _buildModernField(
                           expiryDateController,
@@ -557,12 +561,13 @@ class _SellerInventoryScreenState extends State<SellerInventoryScreen> {
                             context: context,
                             initialTime: TimeOfDay.now(),
                           );
-                          if (picked != null)
+                          if (picked != null) {
                             setModalState(
                               () => expiryTimeController.text = picked.format(
                                 context,
                               ),
                             );
+                          }
                         },
                         child: _buildModernField(
                           expiryTimeController,

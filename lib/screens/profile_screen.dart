@@ -248,8 +248,9 @@ class _LoggedInUserProfileState extends State<LoggedInUserProfile>
         final userData = snapshot.data?.data() as Map<String, dynamic>?;
 
         String displayName = (userData?['name'] as String?) ?? "";
-        if (displayName.isEmpty)
+        if (displayName.isEmpty) {
           displayName = widget.user.displayName ?? "User";
+        }
         final String? profileImage =
             userData?['profileImage'] ?? widget.user.photoURL;
 

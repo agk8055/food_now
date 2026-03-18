@@ -10,18 +10,18 @@ import 'package:food_now/screens/buyer_orders_screen.dart';
 class _AppColors {
   static const Color primary = Color(0xFF00BF63);
   static const Color primaryGlow = Color(0xFF00FF87);
-  static const Color primaryDim = Color(0xFF00BF6326);
+  static const Color primaryDim = Color(0xff00bf6326);
   static const Color surface = Color(0xFF111111);
   static const Color surfaceElevated = Color(0xFF1A1A1A);
   static const Color surfaceHighlight = Color(0xFF222222);
   static const Color textPrimary = Color(0xFFF5F5F5);
   static const Color textSecondary = Color(0xFF8A8A8A);
   static const Color border = Color(0xFF2A2A2A);
-  static const Color borderAccent = Color(0xFF00BF6340);
+  static const Color borderAccent = Color(0xff00bf6340);
   static const Color cancelRed = Color(0xFFFF4D4D);
-  static const Color cancelRedDim = Color(0xFFFF4D4D1A);
+  static const Color cancelRedDim = Color(0xffff4d4d1a);
   static const Color expiredGrey = Color(0xFF8A8A8A);
-  static const Color expiredGreyDim = Color(0xFF8A8A8A26);
+  static const Color expiredGreyDim = Color(0xff8a8a8a26);
 }
 
 // ─── Glassmorphic Card Painter ────────────────────────────────────────────────
@@ -137,7 +137,7 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
           final List<DocumentSnapshot> validDocs = [];
 
           for (var doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             final status = data['status'];
 
             if (status == 'cancelled' || status == 'expired') {
@@ -181,15 +181,11 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
   }
 
   Future<void> _launchNavigation(Map<String, dynamic> orderData) async {
+    String? mapUrl;
     double? lat;
     double? lng;
 
-    if (orderData.containsKey('shopLocation') &&
-        orderData['shopLocation'] != null) {
-      final GeoPoint point = orderData['shopLocation'];
-      lat = point.latitude;
-      lng = point.longitude;
-    } else if (orderData.containsKey('shopId')) {
+    if (orderData.containsKey('shopId')) {
       try {
         final shopDoc = await FirebaseFirestore.instance
             .collection('shops')
@@ -197,20 +193,41 @@ class _FloatingActiveOrdersState extends State<FloatingActiveOrders>
             .get();
         if (shopDoc.exists) {
           final shopData = shopDoc.data()!;
+          // 1. Try mapUrl from shop collection
+          if (shopData.containsKey('mapUrl') &&
+              shopData['mapUrl'] != null &&
+              shopData['mapUrl'].toString().isNotEmpty) {
+            mapUrl = shopData['mapUrl'];
+          }
+
+          // 2. Try location from shop collection (for backup)
           if (shopData.containsKey('location') &&
-              shopData['location'] != null) {
+              shopData['location'] != null &&
+              shopData['location']['geopoint'] != null) {
             final GeoPoint point = shopData['location']['geopoint'];
             lat = point.latitude;
             lng = point.longitude;
           }
         }
       } catch (e) {
-        debugPrint("Error fetching shop location: $e");
+        debugPrint("Error fetching shop data: $e");
       }
     }
 
+    // 3. Fallback to shopLocation in orderData if still no coordinates
+    if (lat == null &&
+        lng == null &&
+        orderData.containsKey('shopLocation') &&
+        orderData['shopLocation'] != null) {
+      final GeoPoint point = orderData['shopLocation'];
+      lat = point.latitude;
+      lng = point.longitude;
+    }
+
     String url = '';
-    if (lat != null && lng != null) {
+    if (mapUrl != null) {
+      url = mapUrl;
+    } else if (lat != null && lng != null) {
       url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
     } else {
       final shopName = orderData['shopName'] ?? 'Restaurant';

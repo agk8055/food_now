@@ -209,7 +209,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('shops')
-            .where('ownerId', isEqualTo: _user!.uid)
+            .where('ownerId', isEqualTo: _user.uid)
             .limit(1)
             .snapshots(),
         builder: (context, snapshot) {

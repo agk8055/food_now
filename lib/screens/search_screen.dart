@@ -457,6 +457,14 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
+  String _formatItemName(String name) {
+    if (name.trim().isEmpty) return name;
+    return name.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return word;
+      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+    }).join(' ');
+  }
+
   // ── Food Item Card ─────────────────────────────────────────────────────────
 
   Widget _buildFoodItemCard(BuildContext context, Map<String, dynamic> data) {
@@ -520,9 +528,9 @@ class _SearchScreenState extends State<SearchScreen>
                             cacheHeight: 172,
                             gaplessPlayback: true,
                             errorBuilder: (_, __, ___) =>
-                                _buildFoodPlaceholder(),
+                                _buildFoodPlaceholder(data['name']),
                           )
-                        : _buildFoodPlaceholder(),
+                        : _buildFoodPlaceholder(data['name']),
                   ),
                   if (hasDiscount)
                     Positioned(
@@ -555,7 +563,7 @@ class _SearchScreenState extends State<SearchScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      data['name'] ?? 'Unknown Item',
+                      _formatItemName(data['name'] ?? 'Unknown Item'),
                       style: const TextStyle(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
@@ -648,7 +656,12 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildFoodPlaceholder() {
+  Widget _buildFoodPlaceholder(String? itemName) {
+    String firstLetter = '';
+    if (itemName != null && itemName.trim().isNotEmpty) {
+      firstLetter = itemName.trim().substring(0, 1).toUpperCase();
+    }
+
     return Container(
       height: 86,
       width: 86,
@@ -656,7 +669,18 @@ class _SearchScreenState extends State<SearchScreen>
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
+      child: firstLetter.isNotEmpty
+          ? Center(
+              child: Text(
+                firstLetter,
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            )
+          : Icon(Icons.fastfood_rounded, color: Colors.grey[350], size: 30),
     );
   }
 

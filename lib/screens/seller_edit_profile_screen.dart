@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class SellerEditScreen extends StatefulWidget {
   final DocumentSnapshot doc;
@@ -145,7 +144,7 @@ class _SellerEditScreenState extends State<SellerEditScreen> {
                 ),
               ],
             ),
-            ...imageControllers.asMap().entries.map((entry) => _buildImageEditTile(entry.key, entry.value)).toList(),
+            ...imageControllers.asMap().entries.map((entry) => _buildImageEditTile(entry.key, entry.value)),
             const SizedBox(height: 40),
             _buildSaveButton(),
             const SizedBox(height: 30),

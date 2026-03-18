@@ -377,78 +377,87 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
   }
 
   Widget _buildEmptyState(bool isPendingTab) {
-    return SingleChildScrollView(
-      key: const ValueKey('empty_state'),
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.65,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Layered icon container
-            Stack(
-              alignment: Alignment.center,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          key: const ValueKey('empty_state'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+              minWidth: constraints.maxWidth,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  height: 110,
-                  width: 110,
-                  decoration: BoxDecoration(
-                    color: primaryGreen.withOpacity(0.06),
-                    shape: BoxShape.circle,
+                // Layered icon container
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      height: 110,
+                      width: 110,
+                      decoration: BoxDecoration(
+                        color: primaryGreen.withOpacity(0.06),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Container(
+                      height: 82,
+                      width: 82,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      isPendingTab
+                          ? Icons.assignment_turned_in_rounded
+                          : Icons.history_rounded,
+                      size: 36,
+                      color: primaryGreen.withOpacity(0.5),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  isPendingTab ? "No active orders" : "No past orders",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.grey[800],
+                    letterSpacing: -0.5,
                   ),
                 ),
-                Container(
-                  height: 82,
-                  width: 82,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Text(
                     isPendingTab
-                        ? Icons.assignment_turned_in_rounded
-                        : Icons.history_rounded,
-                    size: 36,
-                    color: primaryGreen.withOpacity(0.5),
+                        ? "New reservations will appear here."
+                        : "Completed and expired orders appear here.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 28),
-            Text(
-              isPendingTab ? "No active orders" : "No past orders",
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-                color: Colors.grey[800],
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Text(
-                isPendingTab
-                    ? "New reservations will appear here."
-                    : "Completed and expired orders appear here.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -940,20 +949,34 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen>
                 ),
             ],
           ),
-          // Expiration Timer
+          // Expiration & Cancellation Section
           if (displayStatus == 'pending' && expiryTime != null) ...[
             const SizedBox(height: 14),
-            ExpirationTimer(
-              expiryTime: expiryTime,
-              createdAt: createdAt,
-              onExpired: () {},
-              onCancel: () => _showCancelOrderDialog(
-                context,
-                orderId,
-                buyerName,
-                data['buyerId'] ?? '',
-                data['shopName'] ?? 'Seller',
-              ),
+            Row(
+              children: [
+                Icon(Icons.timer_outlined, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text(
+                  "Expires at ${DateFormat(expiryTime.day == DateTime.now().day && expiryTime.month == DateTime.now().month && expiryTime.year == DateTime.now().year ? 'hh:mm a' : 'MMM dd, hh:mm a').format(expiryTime)}",
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                OrderCancellationTimer(
+                  createdAt: createdAt,
+                  expiryTime: expiryTime,
+                  onCancel: () => _showCancelOrderDialog(
+                    context,
+                    orderId,
+                    buyerName,
+                    data['buyerId'] ?? '',
+                    data['shopName'] ?? 'Seller',
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -1110,64 +1133,46 @@ class _AnimatedOrderCardState extends State<_AnimatedOrderCard>
   }
 }
 
-// ── Expiration & Cancellation Timer ──────────────────────────────────────────
-class ExpirationTimer extends StatefulWidget {
-  final DateTime expiryTime;
+// ── Order Cancellation Timer ──────────────────────────────────────────
+class OrderCancellationTimer extends StatefulWidget {
   final DateTime createdAt;
-  final VoidCallback onExpired;
   final VoidCallback onCancel;
+  final DateTime? expiryTime;
 
-  const ExpirationTimer({
+  const OrderCancellationTimer({
     super.key,
-    required this.expiryTime,
     required this.createdAt,
-    required this.onExpired,
     required this.onCancel,
+    this.expiryTime,
   });
 
   @override
-  State<ExpirationTimer> createState() => _ExpirationTimerState();
+  State<OrderCancellationTimer> createState() => _OrderCancellationTimerState();
 }
 
-class _ExpirationTimerState extends State<ExpirationTimer>
-    with SingleTickerProviderStateMixin {
+class _OrderCancellationTimerState extends State<OrderCancellationTimer> {
   Timer? _timer;
-  late Duration _remainingTime;
-  bool _isExpired = false;
-
+  late Duration _cancelRemaining;
   bool _canCancel = false;
-  Duration _cancelRemaining = Duration.zero;
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnim;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
     _calculateRemainingTime();
-    if (!_isExpired) _startTimer();
+    if (_canCancel) _startTimer();
   }
 
   void _calculateRemainingTime() {
     final now = DateTime.now();
-    _remainingTime = widget.expiryTime.difference(now);
 
-    if (_remainingTime.isNegative) {
-      _remainingTime = Duration.zero;
-      _isExpired = true;
+    if (widget.expiryTime != null && now.isAfter(widget.expiryTime!)) {
+      _canCancel = false;
+      _cancelRemaining = Duration.zero;
+      return;
     }
 
-    // 5-minute cancellation window logic
     final timeSinceCreated = now.difference(widget.createdAt);
     if (timeSinceCreated.inSeconds < 300) {
-      // 300 seconds = 5 minutes
       _canCancel = true;
       _cancelRemaining = const Duration(minutes: 5) - timeSinceCreated;
     } else {
@@ -1181,9 +1186,8 @@ class _ExpirationTimerState extends State<ExpirationTimer>
       if (mounted) {
         setState(() {
           _calculateRemainingTime();
-          if (_isExpired) {
+          if (!_canCancel) {
             timer.cancel();
-            widget.onExpired();
           }
         });
       } else {
@@ -1195,100 +1199,57 @@ class _ExpirationTimerState extends State<ExpirationTimer>
   @override
   void dispose() {
     _timer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isExpired) return const SizedBox.shrink();
+    if (!_canCancel) return const SizedBox.shrink();
 
-    final hours = _remainingTime.inHours.toString().padLeft(2, '0');
-    final minutes = (_remainingTime.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (_remainingTime.inSeconds % 60).toString().padLeft(2, '0');
-
-    final timeString = _remainingTime.inHours > 0
-        ? "$hours:$minutes:$seconds"
-        : "$minutes:$seconds";
-
-    final isUrgent =
-        _remainingTime.inMinutes <=
-        15; // Considered urgent in the last 15 minutes
+    final minutes = (_cancelRemaining.inMinutes % 60).toString().padLeft(
+      2,
+      '0',
+    );
+    final seconds = (_cancelRemaining.inSeconds % 60).toString().padLeft(
+      2,
+      '0',
+    );
+    final timeString = "$minutes:$seconds";
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Cancellation Button (Only visible within the first 5 minutes)
-        if (_canCancel) ...[
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: OutlinedButton.icon(
-                key: ValueKey(_cancelRemaining.inSeconds),
-                onPressed: widget.onCancel,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
-                  side: BorderSide(
-                    color: Colors.redAccent.withOpacity(0.4),
-                    width: 1.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  backgroundColor: Colors.redAccent.withOpacity(0.03),
-                ),
-                icon: const Icon(Icons.cancel_outlined, size: 17),
-                label: Text(
-                  "CANCEL (${_cancelRemaining.inMinutes}:${(_cancelRemaining.inSeconds % 60).toString().padLeft(2, '0')})",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ),
+        Text(
+          timeString,
+          style: TextStyle(
+            color: Colors.redAccent.withOpacity(0.7),
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+            letterSpacing: 0.5,
           ),
-          const SizedBox(width: 12),
-        ],
-
-        // Expiration Timer Pill
-        ScaleTransition(
-          scale: isUrgent ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isUrgent
-                  ? Colors.redAccent.withOpacity(0.12)
-                  : Colors.orange.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isUrgent
-                    ? Colors.redAccent.withOpacity(0.25)
-                    : Colors.orange.withOpacity(0.2),
-                width: 1,
-              ),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
+          onPressed: widget.onCancel,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.redAccent,
+            side: BorderSide(
+              color: Colors.redAccent.withOpacity(0.4),
+              width: 1.5,
             ),
-            child: Row(
-              children: [
-                Icon(
-                  isUrgent ? Icons.timer_off_rounded : Icons.timer_outlined,
-                  size: 16,
-                  color: isUrgent ? Colors.redAccent : Colors.orange,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  timeString,
-                  style: TextStyle(
-                    color: isUrgent ? Colors.redAccent : Colors.orange,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            backgroundColor: Colors.redAccent.withOpacity(0.03),
+          ),
+          icon: const Icon(Icons.cancel_outlined, size: 16),
+          label: const Text(
+            "CANCEL",
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+              letterSpacing: 0.5,
             ),
           ),
         ),

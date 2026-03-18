@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../widgets/custom_loader.dart';
 import 'package:food_now/screens/home_screen.dart';
 import 'package:food_now/services/auth_service.dart';
@@ -500,13 +501,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         side: BorderSide(color: Colors.grey.shade300),
                       ),
                     ),
-                    child: const Text(
-                      "Continue with Google",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/google-icon.svg',
+                          height: 24,
+                          width: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "Continue with Google",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -33,7 +33,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     if (_user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Notifications")),
+        appBar: AppBar(
+          title: const Text("Notifications"),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
         body: const Center(child: Text("Please log in to view settings.")),
       );
     }
@@ -47,6 +53,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: StreamBuilder<DocumentSnapshot>(

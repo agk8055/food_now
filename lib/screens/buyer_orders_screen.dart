@@ -43,7 +43,7 @@ class _BuyerOrdersScreenState extends State<BuyerOrdersScreen> {
     if (_user != null) {
       _ordersStream = FirebaseFirestore.instance
           .collection('orders')
-          .where('buyerId', isEqualTo: _user!.uid)
+          .where('buyerId', isEqualTo: _user.uid)
           .orderBy('createdAt', descending: true)
           .snapshots();
     }
@@ -632,6 +632,14 @@ class _OrderCardState extends State<_OrderCard> {
     );
   }
 
+  String _formatItemName(String name) {
+    if (name.trim().isEmpty) return name;
+    return name.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return word;
+      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+    }).join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final String shopName = widget.data['shopName'] ?? 'Unknown Shop';
@@ -969,7 +977,7 @@ class _OrderCardState extends State<_OrderCard> {
                   ...items.asMap().entries.map((entry) {
                     final item = entry.value;
                     final isLast = entry.key == items.length - 1;
-                    final String itemName = item['name'] ?? 'Item';
+                    final String itemName = _formatItemName(item['name'] ?? 'Item');
                     final int qty = item['cartQuantity'] ?? 1;
                     return Padding(
                       padding: EdgeInsets.only(bottom: isLast ? 0 : 9),
